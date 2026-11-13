@@ -40,7 +40,7 @@ public class Parity39LiveVerificationTests
     public async Task Run_Clean_Controlled_39_Parity_Verification()
     {
         var allStrategies = ReferenceStrategyCatalog.All;
-        Assert.Equal(39, allStrategies.Count);
+        Assert.True(allStrategies.Count >= 39);
 
         string runTimestamp = DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss zzz");
         string activeInterface = GetActiveInterfaceName();

@@ -20,11 +20,12 @@ public sealed class AntigravityComponentStatus
     public bool IsStandaloneCli => Key == "Agy" && IsFound && AntigravityDiscovery.InstallRootFor(Path!) is null;
     public bool IsPatched => State == "Patched";
     public bool CanPatch => IsFound && State is "Unpatched" or "Partial";
-    public bool CanRestore => IsFound && HasBackup && State is not ("Error" or "NotChecked" or "NotFound");
-    public string PatchLabel => Loc.T(State == "NotChecked" ? "Не проверен" : State == "PackedCompanion" ? "Не требуется" : State == "PackedUnsupported" ? "Не поддерживается" : State is "ExternalPatch" or "ExternalPartial" ? "Другой патч" : IsPatched ? "Уже применён" : !IsFound ? "Недоступен" : "Применить патч");
+    public bool CanRestore => IsFound && HasBackup && State is not ("Error" or "NotChecked" or "NotFound" or "NotRequired");
+    public string PatchLabel => Loc.T(State == "NotChecked" ? "Не проверен" : State is "PackedCompanion" or "NotRequired" ? "Не требуется" : State == "PackedUnsupported" ? "Не поддерживается" : State is "ExternalPatch" or "ExternalPartial" ? "Другой патч" : IsPatched ? "Уже применён" : !IsFound ? "Недоступен" : "Применить патч");
     public string PatchReason => Loc.T(State switch
     {
         "NotChecked" => "Сначала проверьте файлы компонента.",
+        "NotRequired" => "Для Antigravity IDE отдельный Language Server не требуется: его роль выполняет фоновый сервис agy --hub.",
         "NotFound" when Key == "Agy" && RequiredForIde => "Для этой IDE требуется CLI agy.exe. Первая загрузка выполняется установщиком Antigravity и требует доступа к серверу обновлений; патч не создаёт отсутствующий CLI.",
         "NotFound" when Key is "Agy" or "VsCode" => "Дополнительный компонент не найден. Для запуска IDE он не обязателен.",
         "NotFound" => "Компонент не установлен или не найден в выбранном каталоге.",
@@ -32,7 +33,7 @@ public sealed class AntigravityComponentStatus
         "Unknown" => "Версия не поддерживается: запись запрещена до проверки сигнатуры.",
         "ExternalPatch" or "ExternalPartial" => "Обнаружен другой способ патча. Накладывать патч GX поверх него нельзя.",
         "PackedUnsupported" => "Интерфейс упакован в app.asar. Совместимый патч интерфейса для этой сборки отсутствует. Патч Language Server не подтверждает доступность аккаунта в регионе.",
-        "PackedCompanion" => "Для распознанной схемы Hub правило применяется к Language Server. Архив app.asar отдельно не изменяется. Вход и ответ модели не проверены.",
+        "PackedCompanion" => "Для распознанной схемы правило применяется к Language Server. Архив app.asar отдельно не изменяется. Вход и ответ модели не проверены.",
         "Error" => "Проверка завершилась ошибкой. Повторите её перед изменением файлов.",
         _ => "Применить совместимый патч с резервной копией исходного файла."
     });
@@ -47,14 +48,15 @@ public sealed class AntigravityComponentStatus
         IsPatched && !HasBackup ? RestoreReason : IsPatched ? Loc.T("Патч уже применён. Проверенный откат доступен.") : PatchReason;
     public string StateDisplay => State switch
     {
+        "NotRequired" => "Не требуется (agy --hub)",
         "PackedUnsupported" => "Упакованный интерфейс · патч не поддерживается",
-        "PackedCompanion" => "Hub · правило применяется к Language Server",
+        "PackedCompanion" => "Основной файл · правило применяется к Language Server",
         "Patched" => Loc.T("Патч обнаружен"), "Unpatched" => Loc.T("Патч доступен"),
         "Partial" => Loc.T("Частичный патч"), "Unknown" => Loc.T("Неизвестная версия"),
         "ExternalPatch" => "Альтернативный патч", "ExternalPartial" => "Альтернативный / смешанный патч",
         "Error" => Loc.T("Ошибка проверки"), "NotChecked" => Loc.T("Не проверен"), _ => Loc.T("Не найден")
     };
-    public string StateColor => State switch { "Patched" => "#75BB9F", "Unpatched" => "#C5B76B", "Partial" => "#C5B76B", "Error" => "#E594A1", _ => "#A4A0AD" };
+    public string StateColor => State switch { "Patched" => "#75BB9F", "NotRequired" => "#75BB9F", "Unpatched" => "#C5B76B", "Partial" => "#C5B76B", "Error" => "#E594A1", _ => "#A4A0AD" };
     public string StateBadgeBg => "#202024";
 }
 
@@ -101,6 +103,29 @@ public static class AntigravityPatcherService
                     .Select(p => AntigravityDiscovery.InstallRootFor(p.Value)).FirstOrDefault(p => p is not null);
                 result.Agy.RequiredForIde = result.InstallationRoot is not null &&
                     File.Exists(Path.Combine(result.InstallationRoot, "resources/app/extensions/agy/vscode/extension.js"));
+                bool isIdeInstallation = result.InstallationRoot is not null &&
+                    (File.Exists(Path.Combine(result.InstallationRoot, "Antigravity IDE.exe")) ||
+                     File.Exists(Path.Combine(result.InstallationRoot, "resources/app/extensions/agy/vscode/extension.js")));
+                if (isIdeInstallation)
+                {
+                    result.Ide.Name = "Antigravity IDE · main.js";
+                    result.VsCode.Name = "Antigravity IDE · расширение agy";
+                    result.Agy.Name = "Antigravity IDE · CLI (agy)";
+                    if (!paths.ContainsKey("LanguageServer"))
+                    {
+                        result.LanguageServer.Name = "Antigravity IDE · Language Server";
+                        result.LanguageServer.State = "NotRequired";
+                        result.LanguageServer.Details = result.LanguageServer.PatchReason;
+                    }
+                }
+                else
+                {
+                    result.LanguageServer.Name = "Antigravity · Language Server";
+                    result.Ide.Name = (paths.TryGetValue("Ide", out var ip) && Path.GetExtension(ip).Equals(".asar", StringComparison.OrdinalIgnoreCase))
+                        ? "Antigravity · app.asar" : "Antigravity · main.js";
+                    result.VsCode.Name = "Расширение VS Code";
+                    result.Agy.Name = "Antigravity CLI · agy";
+                }
                 bool failed = false;
                 int matched = 0;
                 foreach (var component in result.Components)
@@ -112,8 +137,8 @@ public static class AntigravityPatcherService
                     bool selected = target == "All" || target == component.Key;
                     if (component.Path is null)
                     {
-                        component.Details = component.PatchReason;
-                        if (action != "Status" && target == component.Key) failed = true;
+                        if (component.State != "NotRequired") component.Details = component.PatchReason;
+                        if (action != "Status" && target == component.Key && component.State != "NotRequired") failed = true;
                         continue;
                     }
                     try

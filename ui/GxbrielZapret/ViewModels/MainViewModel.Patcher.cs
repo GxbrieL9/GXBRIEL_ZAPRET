@@ -1,9 +1,13 @@
+using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
 using GxbrielZapret.Mvvm;
 using GxbrielZapret.Localization;
 using GxbrielZapret.Services.Platform;
 
 namespace GxbrielZapret.ViewModels;
+
+public sealed record AntigravityInstallationOption(string Path, string DisplayName, bool IsSelected, string ProductType);
 
 public sealed partial class MainViewModel
 {
@@ -38,6 +42,8 @@ public sealed partial class MainViewModel
     }
     public bool CanRunPatcher => !IsPatcherBusy && !_isPatcherMonitorChecking && !IsInitializing && !_isShuttingDown;
     public bool IsPatcherAutoDiscovery => string.IsNullOrWhiteSpace(PatcherInstallRoot);
+    public ObservableCollection<AntigravityInstallationOption> DetectedInstallations { get; } = [];
+    public bool HasDetectedInstallations => DetectedInstallations.Count > 0;
     public bool PatcherDirectConnection
     {
         get => Settings.AntigravityDirectConnection;
@@ -59,6 +65,7 @@ public sealed partial class MainViewModel
             _settingsSvc.Save();
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsPatcherAutoDiscovery));
+            RefreshInstallationSelection();
             ApplyPatcherResult(UncheckedPatcherStatus());
             PatcherUpdateMessage = "";
             _patcherForceMonitorRefresh = true;
@@ -80,6 +87,7 @@ public sealed partial class MainViewModel
     public RelayCommand LaunchAntigravityCommand { get; private set; } = null!;
     public RelayCommand CancelPatcherCommand { get; private set; } = null!;
     public RelayCommand ResetAntigravityRootCommand { get; private set; } = null!;
+    public RelayCommand SelectInstallationCommand { get; private set; } = null!;
     public RelayCommand TerminateAntigravityProcessesCommand { get; private set; } = null!;
     public RelayCommand RestartAntigravityCommand { get; private set; } = null!;
     public RelayCommand ForceCloseAntigravityCommand { get; private set; } = null!;
@@ -87,7 +95,7 @@ public sealed partial class MainViewModel
     private IEnumerable<RelayCommand?> PatcherCommands() =>
         [CheckPatcherStatusCommand, PatchAllComponentsCommand, RestoreAllComponentsCommand, PatchComponentCommand,
          RestoreComponentCommand, BrowseAntigravityCommand, LaunchAntigravityCommand, CancelPatcherCommand, ResetAntigravityRootCommand,
-         TerminateAntigravityProcessesCommand, RestartAntigravityCommand, ForceCloseAntigravityCommand];
+         SelectInstallationCommand, TerminateAntigravityProcessesCommand, RestartAntigravityCommand, ForceCloseAntigravityCommand];
 
     private void InitializePatcherCommands()
     {
@@ -99,6 +107,14 @@ public sealed partial class MainViewModel
         ClearPatcherLogCommand = new RelayCommand(_ => PatcherLog = "");
         CancelPatcherCommand = new RelayCommand(_ => _patcherCts?.Cancel(), _ => IsPatcherBusy);
         ResetAntigravityRootCommand = new RelayCommand(async _ => { PatcherInstallRoot = ""; await RefreshPatcherStatusAsync(); }, _ => CanRunPatcher);
+        SelectInstallationCommand = new RelayCommand(p =>
+        {
+            if (p is string path && CanRunPatcher)
+            {
+                PatcherInstallRoot = path;
+                _ = RefreshPatcherStatusAsync();
+            }
+        }, _ => CanRunPatcher);
         BrowseAntigravityCommand = new RelayCommand(async _ =>
         {
             var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Каталог Antigravity или компонента", Multiselect = false };
@@ -220,9 +236,63 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(PatcherBadgeColor));
         OnPropertyChanged(nameof(PatcherBadgeToolTip));
         if (!string.IsNullOrWhiteSpace(result.Summary)) PatcherStatusMessage = result.Summary;
+        UpdateDetectedInstallations(result.Installations);
         RefreshPatcherCommandStates();
         foreach (var log in result.Logs) AppendPatcherLog(log);
     }
+
+    private void RefreshInstallationSelection()
+    {
+        for (int i = 0; i < DetectedInstallations.Count; i++)
+        {
+            var item = DetectedInstallations[i];
+            bool selected = string.IsNullOrWhiteSpace(item.Path)
+                ? string.IsNullOrWhiteSpace(PatcherInstallRoot)
+                : string.Equals(PatcherInstallRoot, item.Path, StringComparison.OrdinalIgnoreCase);
+            if (item.IsSelected != selected)
+            {
+                DetectedInstallations[i] = item with { IsSelected = selected };
+            }
+        }
+    }
+
+    private void UpdateDetectedInstallations(IReadOnlyList<string>? installations)
+    {
+        var roots = (installations is not null && installations.Count > 0)
+            ? installations
+            : AntigravityDiscovery.FindInstallations();
+
+        if (roots.Count == 0)
+        {
+            if (DetectedInstallations.Count > 0)
+            {
+                DetectedInstallations.Clear();
+                OnPropertyChanged(nameof(HasDetectedInstallations));
+            }
+            return;
+        }
+
+        var options = new List<AntigravityInstallationOption>
+        {
+            new("", Loc.T("Автовыбор"), string.IsNullOrWhiteSpace(PatcherInstallRoot), "Auto")
+        };
+
+        foreach (var root in roots)
+        {
+            string name = File.Exists(Path.Combine(root, "Antigravity IDE.exe"))
+                ? "Antigravity IDE"
+                : File.Exists(Path.Combine(root, "Antigravity.exe"))
+                    ? "Antigravity"
+                    : Path.GetFileName(root);
+            bool isSelected = string.Equals(PatcherInstallRoot, root, StringComparison.OrdinalIgnoreCase);
+            options.Add(new(root, name, isSelected, name));
+        }
+
+        DetectedInstallations.Clear();
+        foreach (var opt in options) DetectedInstallations.Add(opt);
+        OnPropertyChanged(nameof(HasDetectedInstallations));
+    }
+
     private void AppendPatcherLog(string line)
     {
         string updated = PatcherLog + (PatcherLog.Length == 0 ? "" : Environment.NewLine) + $"[{DateTime.Now:HH:mm:ss}] {line}";

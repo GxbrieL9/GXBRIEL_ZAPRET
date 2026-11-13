@@ -2137,6 +2137,25 @@
                             </WrapPanel>
                             <Button Content="Завершить все процессы" Command="{Binding ForceCloseAntigravityCommand}" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,0,0,12" ToolTip="Принудительное завершение Antigravity и фоновых процессов выбранной установки. Несохранённые изменения будут потеряны."/>
                             <TextBlock Text="{loc:Loc 'Каталог установки'}" Style="{StaticResource Muted}" Margin="0,0,0,5"/>
+                            <ItemsControl ItemsSource="{Binding DetectedInstallations}" Margin="0,0,0,8" Visibility="{Binding HasDetectedInstallations, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <RadioButton Style="{StaticResource ChipButton}"
+                                                     Content="{Binding DisplayName}"
+                                                     IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                                     Command="{Binding DataContext.SelectInstallationCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                     CommandParameter="{Binding Path}"
+                                                     GroupName="AntigravityInstallationsGroup"
+                                                     ToolTip="{Binding Path, TargetNullValue='Автоматический поиск всех установок'}"
+                                                     Margin="0,0,8,6"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                             <Grid Margin="0,0,0,12" IsEnabled="{Binding CanRunPatcher}">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <TextBox Text="{Binding PatcherInstallRoot, UpdateSourceTrigger=LostFocus}" MinWidth="0" ToolTip="{loc:Loc 'Пустой путь — автоматический поиск. Можно выбрать каталог portable-версии или отдельного компонента.'}"/>

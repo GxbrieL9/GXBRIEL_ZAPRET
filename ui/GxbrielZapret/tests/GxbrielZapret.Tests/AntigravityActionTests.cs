@@ -203,4 +203,62 @@ public sealed class AntigravityActionTests : IDisposable
         Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(script)!, "finished.txt")));
         Assert.DoesNotContain("53129", File.ReadAllText(Path.Combine(Path.GetDirectoryName(script)!, "child-env.txt")));
     }
+
+    [Fact]
+    public async Task IdeModeMarksLanguageServerNotRequiredAndNamesComponentsAccurately()
+    {
+        string ideRoot = Path.Combine(_root, "ide-install");
+        Directory.CreateDirectory(ideRoot);
+        File.WriteAllText(Path.Combine(ideRoot, "Antigravity IDE.exe"), "fixture");
+        Write("ide-install/resources/app/out/main.js");
+        Write("ide-install/resources/app/extensions/agy/vscode/extension.js");
+
+        var status = await AntigravityPatcherService.GetStatusAsync(default, ideRoot);
+        Assert.Equal("NotRequired", status.LanguageServer.State);
+        Assert.Equal("Не требуется", status.LanguageServer.PatchLabel);
+        Assert.Equal("Antigravity IDE · Language Server", status.LanguageServer.Name);
+        Assert.Contains("agy --hub", status.LanguageServer.Details);
+        Assert.Equal("Antigravity IDE · main.js", status.Ide.Name);
+        Assert.Equal("Antigravity IDE · расширение agy", status.VsCode.Name);
+        Assert.Equal("Antigravity IDE · CLI (agy)", status.Agy.Name);
+    }
+
+    [Fact]
+    public async Task DesktopModeNamesAppAsarClearly()
+    {
+        string desktopRoot = Path.Combine(_root, "desktop-install");
+        Directory.CreateDirectory(desktopRoot);
+        File.WriteAllText(Path.Combine(desktopRoot, "Antigravity.exe"), "fixture");
+        Write("desktop-install/resources/bin/language_server.exe");
+        Write("desktop-install/resources/app.asar");
+
+        var status = await AntigravityPatcherService.GetStatusAsync(default, desktopRoot);
+        Assert.Equal("Antigravity · Language Server", status.LanguageServer.Name);
+        Assert.Equal("Antigravity · app.asar", status.Ide.Name);
+        Assert.Equal("Расширение VS Code", status.VsCode.Name);
+        Assert.Equal("Antigravity CLI · agy", status.Agy.Name);
+    }
+
+    [Fact]
+    public void HubInstallerExtensionSelectsGeminiBinAgyEvenIfOtherCliExistsFirst()
+    {
+        string ideRoot = Path.Combine(_root, "ide-with-cli");
+        Directory.CreateDirectory(ideRoot);
+        File.WriteAllText(Path.Combine(ideRoot, "Antigravity IDE.exe"), "fixture");
+        Write("ide-with-cli/resources/app/extensions/agy/vscode/extension.js");
+
+        string strayAgyDir = Path.Combine(_root, "stray-agy", "bin");
+        Directory.CreateDirectory(strayAgyDir);
+        string strayCli = Path.Combine(strayAgyDir, "agy.exe");
+        File.WriteAllText(strayCli, "stray");
+
+        string geminiDir = Path.Combine(_root, "gemini-bin");
+        Directory.CreateDirectory(geminiDir);
+        string targetCli = Path.Combine(geminiDir, "agy.exe");
+        File.WriteAllText(targetCli, "target");
+
+        var found = AntigravityDiscovery.Find(manualRoot: ideRoot, searchRoots: new[] { strayAgyDir }, sharedCliRoot: geminiDir);
+        Assert.True(found.ContainsKey("Agy"));
+        Assert.Equal(Path.GetFullPath(targetCli), found["Agy"]);
+    }
 }

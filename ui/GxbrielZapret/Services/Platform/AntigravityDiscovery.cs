@@ -62,7 +62,10 @@ internal static class AntigravityDiscovery
         // The Hub installer stores its backend outside the desktop installation (cc() in extension 1.11).
         // Associate that known shared CLI only with a selected desktop that actually bundles agy.
         if (desktopRoot is not null && File.Exists(Path.Combine(desktopRoot, "resources/app/extensions/agy/vscode/extension.js")))
-            Add("Agy", [Path.Combine(sharedCliRoot ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gemini", "bin"), "agy.exe")]);
+        {
+            string hubCli = Path.Combine(sharedCliRoot ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gemini", "bin"), "agy.exe");
+            if (File.Exists(hubCli)) result["Agy"] = Path.GetFullPath(hubCli);
+        }
         if (!manual)
         {
             foreach (string dir in new[] { ".vscode", ".vscode-insiders" }.Select(n => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), n, "extensions")))
