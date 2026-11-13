@@ -49,10 +49,10 @@ jobs:
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
         run: ./tools/new-public-release.ps1 -SourcesArchive artifacts/dependencies/third-party-sources.zip
-      - name: Подготовить черновик выпуска
+      - name: Опубликовать выпуск
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          gh release create $env:GITHUB_REF_NAME --draft --verify-tag --title "GXBRIEL_ZAPRET $env:GITHUB_REF_NAME" --notes-file docs/ИЗМЕНЕНИЯ.md artifacts/public-release/release/GXBRIEL_ZAPRET.exe artifacts/public-release/release/GXBRIEL_ZAPRET-win-x64.zip artifacts/public-release/release/app-update.json artifacts/public-release/release/app-update.sig artifacts/public-release/release/SHA256SUMS.txt artifacts/public-release/release/third-party-sources.zip
+          gh release create $env:GITHUB_REF_NAME --verify-tag --title "GXBRIEL_ZAPRET $env:GITHUB_REF_NAME" --notes-file docs/ИЗМЕНЕНИЯ.md artifacts/public-release/release/GXBRIEL_ZAPRET.exe artifacts/public-release/release/GXBRIEL_ZAPRET-win-x64.zip artifacts/public-release/release/app-update.json artifacts/public-release/release/app-update.sig artifacts/public-release/release/SHA256SUMS.txt artifacts/public-release/release/third-party-sources.zip
