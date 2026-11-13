@@ -64,13 +64,16 @@ public sealed class AppUpdateTests
     public async Task ReleaseCheckRequiresSignedAssetsAndExactVersion()
     {
         using var key = RSA.Create(2048);
-        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(Manifest());
+        var cur = AppUpdateService.ParseVersion(UpdaterService.AppVersion);
+        string futureVer = $"{cur.Major + 1}.0.0";
+        var manifest = new AppUpdateManifest(futureVer, "GXBRIEL_ZAPRET.exe", AppUpdateService.AssetUri("v" + futureVer, "GXBRIEL_ZAPRET.exe").AbsoluteUri, new string('a', 64), 123);
+        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(manifest);
         byte[] signature = key.SignData(bytes, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         var service = new AppUpdateService(new HttpClient(new Handler(request =>
             new(HttpStatusCode.OK) { Content = new ByteArrayContent(request.RequestUri!.Host == "api.github.com" ?
-                JsonSerializer.SerializeToUtf8Bytes(new { tag_name = "v4.0.2", draft = false, prerelease = false }) :
+                JsonSerializer.SerializeToUtf8Bytes(new { tag_name = "v" + futureVer, draft = false, prerelease = false }) :
                 request.RequestUri.AbsolutePath.EndsWith(".sig") ? signature : bytes) })), key.ExportSubjectPublicKeyInfoPem());
-        Assert.Equal(Manifest(), (await service.FetchLatestAsync())!.Manifest);
+        Assert.Equal(manifest, (await service.FetchLatestAsync())!.Manifest);
     }
     [Theory]
     [InlineData(true)][InlineData(false)]
