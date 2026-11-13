@@ -29,6 +29,7 @@ public sealed class UpdaterService
     // there is no public release feed to poll. Kept as stub to avoid removing call sites.
 
     private readonly HttpClient _http;
+    internal HttpClient ReleaseHttp => _http;
     private readonly DohResolver _doh = new();
 
     public UpdaterService()

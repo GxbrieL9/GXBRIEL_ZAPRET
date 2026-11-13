@@ -9,7 +9,7 @@ destination.mkdir(parents=True,exist_ok=True)
 def copy(path):
     relative = path.relative_to(root)
     target = destination/relative; target.parent.mkdir(parents=True,exist_ok=True); shutil.copyfile(path,target)
-for relative in ["README.md","LICENSE","THIRD_PARTY.md",".github/workflows/release.yml","docs/ПУБЛИКАЦИЯ.md","docs/ИЗМЕНЕНИЯ.md",
+for relative in ["README.md","LICENSE","THIRD_PARTY.md",".gitattributes",".github/workflows/release.yml","docs/ПУБЛИКАЦИЯ.md","docs/ИЗМЕНЕНИЯ.md",
                  "tools/new-public-release.ps1","tools/prepare-public-cygwin.py","tools/package-public-payloads.py","tools/export-public-repository.py"]:
     copy(root/relative)
 allowed = {"Assets","Controls","Harness","Localization","Models","Mvvm","Services","Startup","Themes","ViewModels","Views","tests","engine","blockcheck2"}

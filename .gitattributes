@@ -1,0 +1,8 @@
+* text=auto
+*.sh text eol=lf
+*.yml text eol=lf
+*.pem text eol=lf
+*.zip binary
+*.ttf binary
+*.ico binary
+*.png binary

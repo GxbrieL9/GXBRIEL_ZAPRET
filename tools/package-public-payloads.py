@@ -10,7 +10,8 @@ def download(url, path):
         with urllib.request.urlopen(url,timeout=60) as response: path.write_bytes(response.read())
     return path.read_bytes()
 shutil.copyfile(root/"ui/GxbrielZapret/LICENSE",licenses/"GXBRIEL_ZAPRET-MIT.txt")
-shutil.copyfile(root.parent/"SOURCE AND REFERENCE/zapret2-v1.0.5.2/docs/LICENSE.txt",licenses/"zapret2-MIT.txt")
+if not (licenses/"zapret2-MIT.txt").exists():
+    shutil.copyfile(root.parent/"SOURCE AND REFERENCE/zapret2-v1.0.5.2/docs/LICENSE.txt",licenses/"zapret2-MIT.txt")
 for font in ["hankengrotesk","spacegrotesk","jetbrainsmono"]:
     download(f"https://raw.githubusercontent.com/google/fonts/main/ofl/{font}/OFL.txt", licenses/f"{font}-OFL.txt")
 for name,url in {
@@ -32,6 +33,13 @@ with zipfile.ZipFile(payload,"w",zipfile.ZIP_DEFLATED) as archive:
     archive.writestr("cygwin/etc/pki/tls/certs/ca-bundle.crt",cert)
     for path in licenses.iterdir(): archive.write(path,"licenses/"+path.name)
 sources=work/"third-party-sources.zip"
+for name,url in {
+    "cygwin-3.4.10.tar.gz":"https://github.com/cygwin/cygwin/archive/refs/tags/cygwin-3.4.10.tar.gz",
+    "WinDivert-2.2.2.tar.gz":"https://github.com/basil00/WinDivert/archive/refs/tags/v2.2.2.tar.gz",
+    "zapret2-1.0.5.2.tar.gz":"https://github.com/bol-van/zapret2/archive/refs/tags/v1.0.5.2.tar.gz",
+}.items():
+    (work/"sources").mkdir(exist_ok=True)
+    download(url,work/"sources"/name)
 with zipfile.ZipFile(sources,"w",zipfile.ZIP_STORED) as archive:
     for record in metadata["files"]:
         if record["kind"]=="source": archive.write(work/"cygwin/cache"/record["path"],"cygwin/"+Path(record["path"]).name)

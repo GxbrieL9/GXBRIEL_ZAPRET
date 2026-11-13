@@ -17,7 +17,8 @@ public sealed class AppUpdateService
     public const string ReleasePage = "https://github.com/" + Repository + "/releases";
     private readonly HttpClient _http;
     private readonly string _publicKey;
-    public AppUpdateService() : this(new HttpClient { Timeout = TimeSpan.FromMinutes(10) }, PublicKey()) { }
+    private static readonly HttpClient SharedHttp = new UpdaterService().ReleaseHttp;
+    public AppUpdateService() : this(SharedHttp, PublicKey()) { }
     internal AppUpdateService(HttpClient http, string publicKey)
     {
         _http = http; _publicKey = publicKey;
