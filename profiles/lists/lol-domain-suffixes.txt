@@ -1,0 +1,13 @@
+riotgames.com
+riotcdn.net
+lol.pvp.net
+sgp.pvp.net
+lolesports.com
+leagueoflegends.com
+vivox.com
+blitz.gg
+b-cdn.net
+iesdev.com
+edgesuite.net
+akamai.net
+pacloudflare.com

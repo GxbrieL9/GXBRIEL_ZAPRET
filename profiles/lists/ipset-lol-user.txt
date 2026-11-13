@@ -1,0 +1,2 @@
+# User public IPv4 addresses for League of Legends.
+# One IPv4 address per line. This file is never overwritten by updates.

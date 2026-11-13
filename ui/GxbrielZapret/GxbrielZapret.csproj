@@ -1,0 +1,96 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>GXBRIEL_ZAPRET</AssemblyName>
+    <RootNamespace>GxbrielZapret</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <Version>4.0.1</Version>
+    <Product>GXBRIEL_ZAPRET</Product>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <!-- Self-contained single-file publish so the user needs nothing installed -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Compression is deliberately OFF: it trades RAM for disk at a bad rate. Uncompressed assemblies
+         are memory-MAPPED out of the exe (file-backed pages the OS can evict); compressed ones must be
+         decompressed into private memory at startup. Measured: on a minimal WPF app with these exact
+         settings compression cost +100 MB working set / +59 MB private; on THIS app it saved 93.5 MB on
+         disk (72.4 MB compressed vs 166.0 MB). So the trade is roughly 1:1 — ~94 MB of download for
+         ~100 MB of RAM. This app sits in the tray all day, so the memory side wins. Re-enable only with
+         a fresh measurement. -->
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <!-- NB: InvariantGlobalization is NOT usable here — WPF's own font cache
+         (MS.Internal.FontCache.MajorLanguages) constructs named CultureInfo("en"/…) and throws
+         CultureNotFoundException in invariant mode, crashing every text render. Verified via the
+         screenshot harness. (Could be revisited with PredefinedCulturesOnly=false, but needs its own
+         WPF-render verification and only saves ~6 MB over compression alone.) -->
+    <EnableComHosting>false</EnableComHosting>
+    <!-- WPF handles DPI via app.manifest; silence the WinForms-only DPI analyzer -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+  </PropertyGroup>
+
+  <Target Name="PackBlockcheckRuntime" BeforeTargets="PrepareForBuild" Condition="Exists('$(MSBuildProjectDirectory)\..\..\core\cygwin\bin')">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\tools\pack-blockcheck2.ps1&quot;" />
+  </Target>
+
+  <ItemGroup>
+    <!-- WinForms is only used for the tray NotifyIcon; avoid the global using
+         so System.Windows.Application (WPF) is not ambiguous everywhere. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <Compile Remove="tests\**" />
+    <EmbeddedResource Remove="tests\**" />
+    <None Remove="tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Open internal types to test project -->
+    <InternalsVisibleTo Include="GxbrielZapret.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="System.Management" Version="9.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- RU→EN UI string table, loaded at runtime by Localization/Loc.cs when the language is English.
+         Embedded (not a loose file) so it travels inside the single-file exe. WithCulture=false +
+         LogicalName are REQUIRED: the ".en." in the name makes MSBuild treat it as an English SATELLITE
+         resource (routed to an en\GxbrielZapret.resources.dll), where GetManifestResourceStream on the main
+         assembly can't see it. These pin it into the main assembly under a fixed name. -->
+    <EmbeddedResource Include="Localization\strings.en.json" WithCulture="false" LogicalName="GxbrielZapret.Localization.strings.en.json" />
+    <EmbeddedResource Include="Assets\release-public-key.pem" LogicalName="GXBRIEL_ZAPRET.release-public-key.pem" />
+    <EmbeddedResource Include="Assets\third-party-notices.zip" LogicalName="GXBRIEL_ZAPRET.third-party-notices.zip" />
+    <!-- Pinned official engine manifest for supply-chain validation -->
+    <EmbeddedResource Include="engine\engine-manifest.json" LogicalName="GXBRIEL_ZAPRET.engine.engine-manifest.json" />
+    <!-- Self-contained zapret2 runtime payload for offline first-run bootstrap. -->
+    <EmbeddedResource Include="engine\zapret2-runtime.zip" LogicalName="GXBRIEL_ZAPRET.engine.zapret2-runtime.zip" />
+    <!-- Self-contained BlitzFix/TCPView capture tools for offline live endpoint capture. -->
+    <EmbeddedResource Include="engine\blitzfix-tools.zip" LogicalName="GXBRIEL_ZAPRET.engine.blitzfix-tools.zip" />
+    <EmbeddedResource Include="engine\blockcheck2-runtime.zip" LogicalName="GXBRIEL_ZAPRET.engine.blockcheck2-runtime.zip" />
+    <!-- Portable first-run list pack: these are the known-good LoL/Riot/Blitz/Discord/Youtube lists
+         shipped inside the exe so a clean machine does not depend on this checkout's profiles folder. -->
+    <EmbeddedResource Include="..\..\profiles\lists\*.txt" LogicalName="GXBRIEL_ZAPRET.bundled-lists.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\app-on.ico" />
+    <Resource Include="Assets\app-256.png" />
+    <!-- Bundled OFL fonts (Hanken Grotesk / Space Grotesk / JetBrains Mono) so the
+         redesigned UI renders identically without the user installing anything. -->
+    <Resource Include="Assets\Fonts\*.ttf" />
+  </ItemGroup>
+
+</Project>

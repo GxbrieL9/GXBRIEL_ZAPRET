@@ -1,0 +1,67 @@
+using GxbrielZapret.Mvvm;
+
+namespace GxbrielZapret.Models;
+
+public enum DiagStatus { None, Pending, Running, Ok, Fail, Timeout, NotSupported, Skip, Canceled }
+
+/// <summary>
+/// One row of the diagnostics matrix: a named endpoint and the live result of
+/// each probe (HTTP / TLS1.2 / TLS1.3 / ping). Properties are observable so the
+/// table updates as the run progresses — WPF marshals item PropertyChanged to
+/// the UI thread automatically, so probes may write these from worker threads.
+/// </summary>
+public sealed class DiagRow : ObservableObject
+{
+    public required string Group { get; init; }   // "Discord"
+    public required string Name { get; init; }     // "Gateway"
+    public required string Host { get; init; }     // "gateway.discord.gg"
+
+    /// <summary>Ping-only endpoints (DNS resolvers) skip HTTP/TLS columns.</summary>
+    public bool PingOnly { get; init; }
+
+    /// <summary>TCP-only endpoints (e.g. a Telegram MTProto DC IP): probe ping + a plain
+    /// TCP-connect on 443 (shown in the HTTP column as reachability) and skip the TLS columns,
+    /// since the endpoint speaks no TLS. Reachability only — does not measure throttling.</summary>
+    public bool TcpOnly { get; init; }
+
+    /// <summary>UDP/STUN-only endpoints (e.g. Discord Voice RTC / WebRTC on UDP 50000-65535):
+    /// probes UDP STUN binding reachability (shown in the HTTP column) and skips TLS columns.</summary>
+    public bool UdpOnly { get; init; }
+    public int UdpPort { get; init; } = 50001;
+
+    private DiagStatus _http = DiagStatus.Pending;
+    public DiagStatus Http { get => _http; set => SetField(ref _http, value); }
+
+    private DiagStatus _tls12 = DiagStatus.Pending;
+    public DiagStatus Tls12 { get => _tls12; set => SetField(ref _tls12, value); }
+
+    private DiagStatus _tls13 = DiagStatus.Pending;
+    public DiagStatus Tls13 { get => _tls13; set => SetField(ref _tls13, value); }
+
+    private DiagStatus _ping = DiagStatus.Pending;
+    public DiagStatus Ping { get => _ping; set => SetField(ref _ping, value); }
+
+    private string _pingText = "";
+    public string PingText { get => _pingText; set => SetField(ref _pingText, value); }
+
+    public void Reset()
+    {
+        Http = PingOnly ? DiagStatus.Skip : DiagStatus.Pending;
+        Tls12 = PingOnly || TcpOnly || UdpOnly ? DiagStatus.Skip : DiagStatus.Pending;
+        Tls13 = PingOnly || TcpOnly || UdpOnly ? DiagStatus.Skip : DiagStatus.Pending;
+        Ping = DiagStatus.Pending;
+        PingText = "";
+    }
+
+    internal void CancelPending()
+    {
+        if (Http is DiagStatus.Pending or DiagStatus.Running) Http = DiagStatus.Canceled;
+        if (Tls12 is DiagStatus.Pending or DiagStatus.Running) Tls12 = DiagStatus.Canceled;
+        if (Tls13 is DiagStatus.Pending or DiagStatus.Running) Tls13 = DiagStatus.Canceled;
+        if (Ping is DiagStatus.Pending or DiagStatus.Running)
+        {
+            Ping = DiagStatus.Canceled;
+            PingText = GxbrielZapret.Localization.Loc.T("Отменено");
+        }
+    }
+}

@@ -1,0 +1,823 @@
+{
+  "mirror": "https://mirrors.kernel.org/sourceware/cygwin/",
+  "packages": [
+    "bash",
+    "ca-certificates",
+    "coreutils",
+    "crypto-policies",
+    "curl",
+    "cygwin",
+    "diffutils",
+    "findutils",
+    "gawk",
+    "grep",
+    "ipcalc",
+    "libattr1",
+    "libblkid1",
+    "libbrotlicommon1",
+    "libbrotlidec1",
+    "libcom_err2",
+    "libcrypt2",
+    "libcurl4",
+    "libdb18.1",
+    "libdb5.3",
+    "libfdisk1",
+    "libffi8",
+    "libgcc1",
+    "libgdbm6",
+    "libgdbm_compat4",
+    "libgmp10",
+    "libgssapi_krb5_2",
+    "libiconv2",
+    "libidn2_0",
+    "libintl8",
+    "libk5crypto3",
+    "libkrb5_3",
+    "libkrb5support0",
+    "liblastlog2",
+    "libmpfr6",
+    "libncursesw10",
+    "libnghttp2_14",
+    "libopenldap2",
+    "libopenldap2_4_2",
+    "libp11-kit0",
+    "libpcre2_8_0",
+    "libproc2_1",
+    "libpsl5",
+    "libreadline7",
+    "libreadline8",
+    "libsasl2_3",
+    "libsmartcols1",
+    "libsqlite3_0",
+    "libssh2_1",
+    "libssl1.1",
+    "libssl3",
+    "libstdc++6",
+    "libtasn1_6",
+    "libunistring5",
+    "libuuid1",
+    "libzstd1",
+    "openssl",
+    "p11-kit",
+    "p11-kit-trust",
+    "perl",
+    "perl_autorebase",
+    "perl_base",
+    "procps-ng",
+    "psmisc",
+    "publicsuffix-list-dafsa",
+    "sed",
+    "terminfo",
+    "tzcode",
+    "tzdata",
+    "util-linux",
+    "which",
+    "zlib0"
+  ],
+  "files": [
+    {
+      "path": "x86_64/release/bash/bash-5.2.21-1.tar.xz",
+      "size": 1650932,
+      "hash": "c3a5594f1c248dd27a3b5aa10c31fb1651072eae878479d3d8cab09c28354ce4509a2fe230f176ad200a6484a561bc10c2dc9c74c4e9f03164190dac2e683d65",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/bash/bash-5.2.21-1-src.tar.xz",
+      "size": 10951680,
+      "hash": "b5c71e11f625de28282572bcadba337567119bbc97391eb9d16cafd0066089f8f3bf7b68f919245f64463304119f4297f7165141f5101a76a3cb853e4eb0ede1",
+      "kind": "source"
+    },
+    {
+      "path": "noarch/release/ca-certificates/ca-certificates-2026.2.92_v9.0.319-1-noarch.tar.zst",
+      "size": 927382,
+      "hash": "b00a1236b5728a6722a14b6aa4c99560e51fee3b60c216f1634d294fb454ea935c2bbe9e208b16dc9b063dd2a2bfbb8e906f80a07526b1b05e7543bac87b1310",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/ca-certificates/ca-certificates-2026.2.92_v9.0.319-1-src.tar.zst",
+      "size": 581723,
+      "hash": "d6875e1d88dcf6491b14ca97ecae84959285dc08ebce917155791147031e04e43e1e46fbb53e06f2e404e2c60371d7af86765fd34baaa096646e8513f0f4b935",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/coreutils/coreutils-9.0-1.tar.xz",
+      "size": 2767296,
+      "hash": "530f47640d878f5953580f3556c492a93786191abe573322026b70206a46c7f17d05927784db3e7f2c044d1555f35941880316f7288b887eaec770a9eda4c687",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/coreutils/coreutils-9.0-1-src.tar.xz",
+      "size": 5634596,
+      "hash": "20ea749c3226568d4771bed23a65c93612cfb9c3f3a292e53e1ea2d0c1a155fe123d067a8ffcc4c0c35f113840f0841d9cc0b142423e9a31bde9e65b86762c46",
+      "kind": "source"
+    },
+    {
+      "path": "noarch/release/crypto-policies/crypto-policies-20190218-1.tar.xz",
+      "size": 14032,
+      "hash": "44d50ff08528df786eeb26ec1d312445ec92d77ecc9f448a3b741f7647e187f11eabdc0b38f8ab8de803e21d2e610f67eb44de7554f3fa83f6e8172e609b0054",
+      "kind": "install"
+    },
+    {
+      "path": "noarch/release/crypto-policies/crypto-policies-20190218-1-src.tar.xz",
+      "size": 35588,
+      "hash": "5c8b2319692abd3c0019f8bd53e31a86d663d42e4c1ac08579c918f410bd26fc84f6af72db34fee4f7b568f17f4bf1a695a03943d757094bbf590671e29cb8dd",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/curl/curl-8.23.0-1-x86_64.tar.xz",
+      "size": 7328840,
+      "hash": "ec5998b06c9678cf83d47220c793a2cd24bff6bc760531439290ccd3e500d3debbe49971ba858ec26ff803b3ece498496d217e39c526a16088be82e047ffdd3e",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/curl/curl-8.23.0-1-src.tar.xz",
+      "size": 9925884,
+      "hash": "78658bc0412293279a97957a4fb3f6659de53422b0305be9aa399943420095e51535be2f48a5259bdde5b038b487f7030cd8ae38bf043b4273e6f26e71953d6a",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/cygwin/cygwin-3.6.12-1-x86_64.tar.xz",
+      "size": 1621132,
+      "hash": "c2ceaed3f6fb6c52c30c3fc06fe0ace4b5d9c452dc0a20fd31ffbeb46fd3f98cdea82136ff2feb6d889cb56731336808925f93b85bd9315f5fd544848a2bc582",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/cygwin/cygwin-3.6.12-1-src.tar.xz",
+      "size": 9318356,
+      "hash": "9d70312a931f06d1158e7e913a23fb4aec4bb5fce6c5b55caf274a6d63905248625beaf1391f2d4518fbf5099523fdab2aa26834651856f4693fbf8862027889",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/diffutils/diffutils-3.12-1-x86_64.tar.xz",
+      "size": 431400,
+      "hash": "2a9d8fa0acd5a6108f74afe515f55a2a7cade6fa7f96368e46a6f33cf3b49d270b50dc3cee0320740c8f1729edcbf8dd3824f4b268261fba7aeed0d75a4e943c",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/diffutils/diffutils-3.12-1-src.tar.xz",
+      "size": 1943288,
+      "hash": "0cb3dddc478d25e6d4ed041ce0f45858a6857e1efae3ef1cd46c9a95ea7dac66cce90036ae8e142660d4aaae5ec7f87c7350714d8b500038c379eb602e94137e",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/findutils/findutils-4.11.0-1-x86_64.tar.xz",
+      "size": 768172,
+      "hash": "cbb1359fd81c55f98da1485f84f11f905a7a3fe9ce1676424e86da4d7f0effa5fc298546bd5c62c9707e8ddf93c31597d6da01e60be0610c50b9b22ef9475814",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/findutils/findutils-4.11.0-1-src.tar.xz",
+      "size": 2455656,
+      "hash": "c0b5766b4692140859a3147f8738a335c55333eff722dd1e1816eecead7f98b15bab2bc1dd5813f1c64de8a5a56a22563bcdafc7cd4b40be7a8bef1c31c1265c",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/gawk/gawk-5.4.0-1-x86_64.tar.xz",
+      "size": 1496256,
+      "hash": "3604c99921d0cff387279aec1d3b332e8afcd2746b052304c0511221efdb6ae6d4a3117b36593e44adc43c67b6f6c4c48bccf6b686e2e1a5cac644c89613d829",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/gawk/gawk-5.4.0-1-src.tar.xz",
+      "size": 4661040,
+      "hash": "5c23e610288d88531bb906bc6cd16db784d404778bc7ca10a1575f80f346593fd5091cf6f2c5220fe98ba952a11325bd53fa548eef26bb6637f5ac99f99dde4b",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/grep/grep-3.12-1-x86_64.tar.xz",
+      "size": 418788,
+      "hash": "2ba28b5d93c352bc3f3f0f232e2052e6651b71cc535841f4ff8cedb23e61e9e4c030d7d5516ed9c797074e1a59cbf3a56732ca678cb0e986e86dcbbf25955976",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/grep/grep-3.12-1-src.tar.xz",
+      "size": 1922824,
+      "hash": "0890bfdbe2ade72d1f9ddccfa3782af054ddbdd8a831446fb01e5e567491910dc64de10ed73668aabfe97ecd255af500ba1d3ee9ec1e8f94131916f93dcd5920",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/ipcalc/ipcalc-0.41-1.tar.bz2",
+      "size": 24708,
+      "hash": "18a7524fc9f4106373b819fc35d5b296ccc203ee477dd97b8e928784718631df3f5de3f35ee627c6e6f658159e6cd301c3f23b265b6518420007147f6b32093c",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/ipcalc/ipcalc-0.41-1-src.tar.bz2",
+      "size": 92423,
+      "hash": "2a57d276ea362c414f6a31a60a4107eab7a2cfd15be89c80b3fc17584f2131070e5addf1592031b242fed928ab7e9454fd02de8e1cab5546ff79c10d09e46d24",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/attr/libattr1/libattr1-2.5.2-2-x86_64.tar.xz",
+      "size": 6160,
+      "hash": "345b8f84b9c4df2eeea5e211dbaff5e0382aaee788435e1f4cc69f546e1603bbb45e9baec02a37d935674fcd55fb782d924c3a1540d2f829bde4969c96945ce4",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/attr/attr-2.5.2-2-src.tar.xz",
+      "size": 69476,
+      "hash": "83ea7fe61d77ccf771d2ecceeed37543dfff4b381e2b08c180e91cce396336a2b8e97e404cf9b0062cdff4ff35678d1b8902d611c5c074019f172718179e3a18",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/util-linux/libblkid1/libblkid1-2.40.2-2.tar.xz",
+      "size": 120936,
+      "hash": "d931c47cce5a7caf18799a16ed526e0f0d0f82c0f6d0af952420d50d88f1e0f0ea9d6c07be72f9d0baa06a3299b2db8c3bd3c43d13d94400edc816e7c00da148",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/util-linux/util-linux-2.40.2-2-src.tar.xz",
+      "size": 8862568,
+      "hash": "55f519b022990db0d31cf4e36dee9c84226a71931ce5db213a5fd083974f645b0c0c4434da5cd8c468df9c9855134a9dbadf94b8d23f7104b450e7a211a25701",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/brotli/libbrotlicommon1/libbrotlicommon1-1.2.1-1-x86_64.tar.xz",
+      "size": 55328,
+      "hash": "8883ed98c0682f1cabd5855dac730bd2c5c8298a3d945ae39803b1d1542063bbd299cd0d5b238a2a281e2c075b87711dd0f09f1e7386c55e21f152cbca76f3a6",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/brotli/brotli-1.2.1-1-src.tar.xz",
+      "size": 646740,
+      "hash": "7a83a62aabfb6e4ab40b24159f5ab08ad8c14fa5277507eefa33d0728bc14b080995888d9eb70bebd2ebaf12407f6ef7e61bf0082aa442ad5914772ca21399b0",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/brotli/libbrotlidec1/libbrotlidec1-1.2.1-1-x86_64.tar.xz",
+      "size": 20844,
+      "hash": "14d631ba1f23c2cfc3d8cd13d3bb72927f491eac1a66cca81b0fd8163edf02916d4936fe0d3f5fa246aa267aa1ba2e7feed17ee3882e9b9d52b1ce0a017ba9dc",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/e2fsprogs/libcom_err2/libcom_err2-1.44.5-1.tar.xz",
+      "size": 4132,
+      "hash": "3344fbc09364d789e92a81af5ba1e830dd47cef3392a1ee389a2fd49a9cc56a63afc78bebefb92c025d8222e6e454c114d572f0f395e5e20ede2b2266b0fe709",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/e2fsprogs/e2fsprogs-1.44.5-1-src.tar.xz",
+      "size": 7600184,
+      "hash": "5976599e58ce1942f56c2e45d4e88415ae905a29a10451294647012d049951d4662e06c93492914c5c3d880097a834b8a5476464a302cf954a43393faf7fa6d4",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/libxcrypt/libcrypt2/libcrypt2-4.5.2-1-x86_64.tar.xz",
+      "size": 106104,
+      "hash": "7668d29aaebba8ca94e48e810d92108db72b067b2786cea8dcf4a049c29f20f0aeb8653a6e9524869c69e0b1df9d4d0ac499a052a86f0d44178e8a8167002c97",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/libxcrypt/libxcrypt-4.5.2-1-src.tar.xz",
+      "size": 572544,
+      "hash": "febb2198032521ccad5df4c1311c99cb9fc8fe11b7a67ec5199a80614a96969836f9989a48797644cb11cd7b54933ff4deaa7ed1246e171f99fe52111a51accb",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/curl/libcurl4/libcurl4-8.23.0-1-x86_64.tar.xz",
+      "size": 368880,
+      "hash": "3de5f54fb286383c3a5f0e4cbc1d1b8b874054ab1292e98c342c1d2b2df6a2f9483094a197081f4b684ef8cb68c3d1ba1aa77f212ca0857d5831d5223150b3cf",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/db/libdb18.1/libdb18.1-18.1.40-1.tar.xz",
+      "size": 733872,
+      "hash": "51955ae95823c54051b5345a7dbe6927521411754dff416ad6af2061bd3c9b2230ca2ea88f9b921b4b09b7654c7dac924b0ae08af708a93604cc193d6a18f4ff",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/db/db-18.1.40-1-src.tar.xz",
+      "size": 29961240,
+      "hash": "83c1d346eb295975e55b593ba949bd68eb33fc60f79f9f58c63e063a2481b261f5357ac1cea707a780ec36b01d9ba3a437b376fdf3dab9705fce940d1dba3d24",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/db/libdb5.3/libdb5.3-5.3.28-2.tar.xz",
+      "size": 883388,
+      "hash": "539c2781efe864563526826833a2b22750e4715067dfa438d5dc231d07d26258dc94757b0c2304600e806d8ab9de7af762f29c1d34d22f763be85ef48a3597a2",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/db/db-5.3.28-2-src.tar.xz",
+      "size": 34327392,
+      "hash": "b4858dbb4ce01a7651a6b37b11951be2702da805e0f64e8a4d7620066e47fbcf739aee81b2c0c7a6fe17278eae04cf86c42d03f289b6f291f6f526ac76037b07",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/util-linux/libfdisk1/libfdisk1-2.40.2-2.tar.xz",
+      "size": 160264,
+      "hash": "0c8e6854eb72bb8cc51fc33565ee0d36a747e520e98e074a1d2400672a45651807b53be0f5a1c97efa0ce34975063f86953c9465312dcfdaba8104edb1298d62",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/libffi/libffi8/libffi8-3.8.0-1-x86_64.tar.xz",
+      "size": 196924,
+      "hash": "935a0567f740a314d70ecd4adc8c4cf5ad37c6fb43f2d26dee882d4fda71f08efb2646bee10cee6e2000f52e25cce87fa29ce07665ba6d22532e0daa76bc887c",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/libffi/libffi-3.8.0-1-src.tar.xz",
+      "size": 1583092,
+      "hash": "7d8b8250fc50b8a48387ee65b7c191c14b5965c5a089c5aeef2dfaa442f0132be6ed089044fd28bf4cbbd62919e53639245671e9c8c7c9225f4c880dcea33180",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/gcc/libgcc1/libgcc1-14.4.0-1-x86_64.tar.zst",
+      "size": 59166,
+      "hash": "5ac8a56e5eee285efcd6dbd05a473e795e181021d7194b8a98dfe2fa201a71f0abe2908e0b4c81490eb5ef472efaeac8e56a61a5f289eee4ad6e90e52a844ff8",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/gcc/gcc-14.4.0-1-src.tar.zst",
+      "size": 91626118,
+      "hash": "a4fa4be6b610a7d868271027c17c46c5f64e1b125e0bec1d51d34cc47f53a670c95841ad4fdcb5aa236244e8b09e5dc194c64e788fc5011459ba2eb29a815299",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/gdbm/libgdbm6/libgdbm6-1.26-1-x86_64.tar.xz",
+      "size": 25436,
+      "hash": "8ed666a5b978b40f8cfc69d270d47cd674a31eb41bac499f783137eedfde6aa02ba4346de3d5dc3184d9af10ec80f57730c7517a88732616f4c6e0ef637d4bce",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/gdbm/gdbm-1.26-1-src.tar.xz",
+      "size": 1228800,
+      "hash": "ad0b21614bb22c3a6f4640a38f3c99c41f38797cb3987e31b0839ec9ea5047f01f60caab7d89fc66e4221da93aae2ce225cccb5b167fa781f28544d5f79d6f9f",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/gdbm/libgdbm_compat4/libgdbm_compat4-1.26-1-x86_64.tar.xz",
+      "size": 3892,
+      "hash": "fd026dd74c495c1ee67b790269e77e8525ad78d52d4895923443feab55f7bb32dc07b115d490143c7e0277167d9cdbef5dad4707ecc7ca6df13a9f1a5184f8ca",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/gmp/libgmp10/libgmp10-6.3.0-1.tar.zst",
+      "size": 254680,
+      "hash": "947cd56e1945ddf180622b453f17e6655b4ee3e79fcc91238370a8826b88cd07c31d939f1ed7b87d91344d46fee90af2560105267a9207dcca800cba72459191",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/gmp/gmp-6.3.0-1-src.tar.zst",
+      "size": 2095913,
+      "hash": "fb2d8d5106aef273c028e3b5772a7c1d11dcd8b82f69ce1e19c46f0fd3cfc34d49a2b76614527f0f98882efa369e7825bfb9232e746976b8e0cb35c6e38f2e8c",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/krb5/libgssapi_krb5_2/libgssapi_krb5_2-1.15.2-2.tar.xz",
+      "size": 102828,
+      "hash": "0b9922b28f24f260bccb179c52354377173c1f0243420fb655154b4bd6da99af33b17c172dc46344d9fb38756abb0d8d449d5c7fba7f179dda7a3337c330224f",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/krb5/krb5-1.15.2-2-src.tar.xz",
+      "size": 9488172,
+      "hash": "388e966277d23f15e2687fdebc7a1d9f215780e26d9e69e9370a28e2ba499abf5335d5f6b89d2e44e702c993f49e1b44ee5af6552535d292fdd0f22609da09bd",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/libiconv/libiconv2/libiconv2-1.19-2-x86_64.tar.xz",
+      "size": 555664,
+      "hash": "a1b23e24e0a495e7163923bcf40a4b933403e0826cfc0d9bde785bc92c909b8c4fb94b1e6b2c0242f4328a723855e72ff3baab9f557ef855b7fe7a7d901b0943",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/libiconv/libiconv-1.19-2-src.tar.xz",
+      "size": 5086384,
+      "hash": "62288f9458b6c5a9eec369900971e9c552747b03df0198fbe1749ca93f76bf3d3079109f115ec0f53b2dc2f72c0c8624e21fa439fc41b9a0be339465fce1c534",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/libidn2/libidn2_0/libidn2_0-2.3.8-1.tar.xz",
+      "size": 117676,
+      "hash": "0ac5f0b8809e27fdff86ba7cbf344f6527b7337ad0cc00bbb6813ccfff39803e14aba7fbed17871c17d7e8993a80308bb5b95a24d5cb44c191ccc50e99be4974",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/libidn2/libidn2-2.3.8-1-src.tar.xz",
+      "size": 2157184,
+      "hash": "e6a23095763f1b75a7ef8029a03d1ea933433e4b7012ea4fa37a6961ecb20a1ad9050d0027620507018607deb3355ca9b06ce4c7e233781bb28f46876ed7795e",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/gettext/libintl8/libintl8-0.22.5-1.tar.xz",
+      "size": 43256,
+      "hash": "370a19af888bc7c9ed95cf8ade0d36d5e7cdb634abdebcba260cad61fa9a4cc05b5e748e315c9709f66861e8756b227d6757d529846591189e19ee2b2d00002d",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/gettext/gettext-0.22.5-1-src.tar.xz",
+      "size": 8483620,
+      "hash": "101bf0971ec63c5a99fc1f78be0047417ce4bbbe6bee88596a27973cad07cbb7a89e466e3e996332ef9d99b3d38b3bede42e53ca544c5e3540f723ccb8621e04",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/krb5/libk5crypto3/libk5crypto3-1.15.2-2.tar.xz",
+      "size": 73344,
+      "hash": "249808d087f1a1ac7a5b117aaf499e173c9e404b224b9d9ff5a5fa1d2ace8b7c1185100bfa33174a82cbc250f376671d48b7d93d11924b5c4b524897841e2967",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/krb5/libkrb5_3/libkrb5_3-1.15.2-2.tar.xz",
+      "size": 236076,
+      "hash": "639bb23f5bafc62fe6d36d44f1786445b949db5547dee66c73ec75c5d1d9d3444b8f326ffae811fb18fed3e85fead713362cf2c2488f880d3f5bc8ea087cee64",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/krb5/libkrb5support0/libkrb5support0-1.15.2-2.tar.xz",
+      "size": 14424,
+      "hash": "93162fc8430153b054c77c1dea7d9df6be8422922a9ee6fd923b46797c466200d78e80cb4e17387dd18ed1631a7828a57169fdc743c7b2a7a270259aa586113d",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/util-linux/liblastlog2/liblastlog2-2.40.2-2.tar.xz",
+      "size": 4908,
+      "hash": "89350921fe76c9065662dd9d72dd464d2f404f1690e806210cbb828ae8325ea5f3f9909d8eb04c8342b80417a4e1e22c3569241515762ad081ecd58d56927c02",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/mpfr/libmpfr6/libmpfr6-4.2.2-1.tar.zst",
+      "size": 284416,
+      "hash": "8203dc61bf646041c71f7fece9fe59422ded96ac28dd24826ffb00a9607f274f3226673f9bee441f32b424a7e26c2f178281bd7836db26b0253d37da208d06a8",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/mpfr/mpfr-4.2.2-1-src.tar.zst",
+      "size": 1508481,
+      "hash": "60e5406de4b0416a1c56697327297ded22d4c45d069eb9e0ee3c8add7401cb7ba40748f80d5425935f787280f70cc9efee3a8bfdbed71f6e86ec89bbd6fcd115",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/ncurses/libncursesw10/libncursesw10-6.5+20240427-1.tar.xz",
+      "size": 393928,
+      "hash": "08102f7a7083cb5663fecc46d819f2ece4123444a8f94c42300f03f7eebd40395f556c44b22ab58bf57321b44d9b8fb8b19358e535c7500d36e52d48b05dcca8",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/ncurses/ncurses-6.5+20240427-1-src.tar.xz",
+      "size": 3703872,
+      "hash": "e16cffd412ae0b998553a162041b71a5fb20b89b36a1d2acc5de633a82430010de58439fddbd16bfba1679697659a43d3672b9a3f53e03353bd4ad22a7a8f09b",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/nghttp2/libnghttp2_14/libnghttp2_14-1.69.0-1-x86_64.tar.xz",
+      "size": 86464,
+      "hash": "614c20bfa3dcdd43bc115e861319d26ba3835e58afa004168b55de31db64860bb81b643bf931cd395d409451e0f1d7b2c8dab682c0699ba4574fb90ecdb2479d",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/nghttp2/nghttp2-1.69.0-1-src.tar.xz",
+      "size": 1701812,
+      "hash": "1b9f28492832231531c4bc2da689b8bd0e5efb1b2b9334f0be39bf61dea0173cf56e817c24f9a7d434d8de55912d1adafa8f5056eba5c9953eec0f47d23711cf",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/openldap/libopenldap2/libopenldap2-2.7.2-1-x86_64.tar.zst",
+      "size": 157534,
+      "hash": "5e5eb0db25a910a3f0415b320d0c501b43d543b49440b92a8927a5f7d4989f57133b0f24446c836e7cfca48eb282510733dba44bb505577a5f695816191e88ea",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/openldap/openldap-2.7.2-1-src.tar.zst",
+      "size": 6473468,
+      "hash": "f8190dd060d8a5ef5be8161d34937920a072d0b5728a938383e201c7bd13825fea139ae7e935bb998e7fe8b21acc5e22598df26fc7de75e583dcafd8a9c9918f",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/openldap/libopenldap2_4_2/libopenldap2_4_2-2.7.2-1-x86_64.tar.zst",
+      "size": 157210,
+      "hash": "2dd3ba4b44679e53c00c01f3136ae019388f8a7a30a9f40a3c80756fc90c0db4f03b4d472f6df0c151fb8781c1ed00a1937f4861b5b96297fdcf9c52a506405a",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/p11-kit/libp11-kit0/libp11-kit0-0.26.5-1-x86_64.tar.xz",
+      "size": 212700,
+      "hash": "dd64f129fe71233e26e0845b6711db5cf2eb2e6d2d050f07b6aec0d9dd54d980e87390614744fbf022cf57aa2b3f7edbdc30c548c2f9d480188c22bcde0c2eba",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/p11-kit/p11-kit-0.26.5-1-src.tar.xz",
+      "size": 1088428,
+      "hash": "3121e44601f87184352240bd7029a4f91ec5a732f51b4a88d87d676b34becc8f0606afabd43651ba3742b59aaba48e1a54ee713d43732bba03154ca8c0438a55",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/pcre2/libpcre2_8_0/libpcre2_8_0-10.49-1-x86_64.tar.zst",
+      "size": 244195,
+      "hash": "4093be5fdc2077d078865c1a553df6bc2fe5c02b4ea106e605c4d92dfd876c68ca894908539e86fdb089d60b376776a941f2645c21b2cad76027a335ac338bb0",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/pcre2/pcre2-10.49-1-src.tar.zst",
+      "size": 2185865,
+      "hash": "d559a06956119d26a0c275169434f40ffdb9f443504fce7cca8403e96c249cb4821a87ead8cddffec062824e6a5ceb0d2d148e13882afff28c614f09f49876ec",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/procps-ng/libproc2_1/libproc2_1-4.0.7-3-x86_64.tar.zst",
+      "size": 45953,
+      "hash": "a39de52b3d1629a14dce510d330c25c16f194c3db0e150d5e60ea2d02dbc875557936c2b3617747da5cc7a3998ade5856e12c875a82d5f226b8fb81548240830",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/procps-ng/procps-ng-4.0.7-3-src.tar.zst",
+      "size": 1581954,
+      "hash": "192e051f8f067b66637a645b9fb20a4458030d580ac5d3d60c3600cbb6447d98bfd4dd10c29ab6e1730ed69fab8cde5e7f6650d8a3ed3ac8fd5c1f232076ef00",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/libpsl/libpsl5/libpsl5-0.23.3-1-x86_64.tar.xz",
+      "size": 59816,
+      "hash": "e0d990b0f423004a426f1b2eb288bd5323bcf2a91a34485f6da6939d1f757b344c1ba3ecd37d5c31f9158f50cb3c6af3b9ea805f5147030c2807e3217023866e",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/libpsl/libpsl-0.23.3-1-src.tar.xz",
+      "size": 2130516,
+      "hash": "54819ac75c011b8af1e69602d42861cf9e6d196a153b2796aa6819016c076d67731e7f08b8e4b2b212b46406ca874af7ac4ac5cba6e5a456c134e07c90f06688",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/readline/libreadline7/libreadline7-8.2-2.tar.xz",
+      "size": 113340,
+      "hash": "1d27576cf49b056f35f90ad933e39c5d946bc271ddcd109daa98f95b97123b428256827889ff45ca8a76409cdb1afd0146e99c9b70150b302538356512acfe38",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/readline/readline-8.2-2-src.tar.xz",
+      "size": 3046308,
+      "hash": "ebedad14bf205cb9f5df0f5e4742f737e98e6bad5539996c36840d1c86d603877e0c3e4f9d0c9df9081b4c820c9b8c3224dbe8b45b9e7f5c97bc7973a35b3da4",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/readline/libreadline8/libreadline8-8.3-1-x86_64.tar.xz",
+      "size": 120084,
+      "hash": "64142c5f305b9836c5be9a4271e4163d8b3e739a0451c0d152373eeb3338342f7cf5691e4437b8e6d0a8404c30ea7a21832e342e7a1ca3b5f3e8e3403051b96e",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/readline/readline-8.3-1-src.tar.xz",
+      "size": 3354620,
+      "hash": "31710b8055e4df64d6fd256f76eb513df10366faf4ee5e7f97dc75b720186ee9883c843c48da796dce5600eba0ca424500e35db0435d5cf34ad9ce631fd352c8",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/cyrus-sasl/libsasl2_3/libsasl2_3-2.1.27-1.tar.xz",
+      "size": 138480,
+      "hash": "7cbb03e1752c7a36d79afb82b9b02f166404fcd9ef11d04650a5174c2092512d640322c613bbed606c973aa89e5283439cf6766f3b1a1b7fdd8ef4db90735ff4",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/cyrus-sasl/cyrus-sasl-2.1.27-1-src.tar.xz",
+      "size": 3898108,
+      "hash": "d0d09974d464d746ab7624c46905bdddb5932265394fa08fb46010608144383a588ba8b1d28d08b0ec7be5a619ed42650797bfd066be7c87537b5997b9997fca",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/util-linux/libsmartcols1/libsmartcols1-2.40.2-2.tar.xz",
+      "size": 96124,
+      "hash": "71ded6f02d264343d068b90450d96f4fdeb4087f278b990709aaa814c16123f4ae947714e5f10020260c30a6d78865c2d35d9ffe57a51b038815db52c3274317",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/sqlite3/libsqlite3_0/libsqlite3_0-3.49.1-1.tar.xz",
+      "size": 686212,
+      "hash": "cd81686fe5778a94ab91e4aebdd2a229cb963318ce7b393e0a0299e29ed7648c24135733c1978cbebbb926813d7f994b9e38318ede12c72fe79ad404dbfdeaf2",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/sqlite3/sqlite3-3.49.1-1-src.tar.xz",
+      "size": 3508192,
+      "hash": "6ab08f70e1d0415c161f0a435ceae191367f8c9c2ccd61d11daad251acb269f63d5bc1f6899dc3ce49028c65b55bf233c1fec89a137092e2dc7beaf3bdebdcaf",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/libssh2/libssh2_1/libssh2_1-1.11.0-1.tar.xz",
+      "size": 186580,
+      "hash": "6a4ad8255271c78671e1ceb7fcfe4f43eff900c90942ad0b8446070cd496f7297b1b8bf9a1ad79bd9f419ec2ee2a73761ef1b29956861265657354c75d656463",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/libssh2/libssh2-1.11.0-1-src.tar.xz",
+      "size": 1058764,
+      "hash": "97a8f128483278a185b8877165822aad2b1f1eab39618e1b59b46997fe94433ca38b827077c4250e34af001c20b38f1684d9ae5acec43bfa4b6c427e12701324",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/openssl/libssl1.1/libssl1.1-1.1.1w-1.tar.zst",
+      "size": 1255182,
+      "hash": "d03c5050e1cf5c8420824e5f825916f460ada86df695b0c8dd9eff7f1d94fe7131b35ed2c3d94972aad109610236f50c874a087bbf7bb1485807f59bddafa047",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/openssl/openssl-1.1.1w-1-src.tar.zst",
+      "size": 9896162,
+      "hash": "88037310892947b17e44206cf19ff766f24f082c244f1dedd321991bc1fb3d97948547cf6ac1a6becd4752026166fbbcd624a9c802d4b473e07bd99e6d330123",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/openssl/libssl3/libssl3-3.5.9-1-x86_64.tar.zst",
+      "size": 2101048,
+      "hash": "cc3836812d1133caaab81c17e79efffb47aa5172dce3d4644682ed73a2df2b0754d2e1e8df879479d0be148d4a329b4cd76e15dfaff6e7874fa8aabe298a8288",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/openssl/openssl-3.5.9-1-src.tar.zst",
+      "size": 53203241,
+      "hash": "3c12d022311e2b02cd117740c535d512848421a5e6f806a35547bd7e8fb03976f6e92e6cae82fbfc80d90a6e34bcab6320db8808ba55b36fe63dbacea0f05663",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/gcc/libstdc++6/libstdc++6-14.4.0-1-x86_64.tar.zst",
+      "size": 651767,
+      "hash": "3d86409193c952618eee7e2dea32bdeb97f22ee800e13cc46f98b5095d4d0b1b31ac4336dc5819abb2d553ad1c2151619e9f6f337dfe921ba80fda1323f6f4e3",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/libtasn1/libtasn1_6/libtasn1_6-4.21.0-1-x86_64.tar.xz",
+      "size": 32072,
+      "hash": "d28713b27d5d41408b29caed785e29380da4d8b4ccdc1c479ae13906e6765bedc6d6b9e6c1c22fd2111d678fcf1663187d3de27d7ad2e104cd48c38086189e36",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/libtasn1/libtasn1-4.21.0-1-src.tar.xz",
+      "size": 1739292,
+      "hash": "0ac7b0a5633f03c214ffcbafd0fe4e441da2dca0c7b9e7188e20ab673cb0ced8152134ace4d2be2130a6cac7265ce5fd3f413ef07cfe6cb0ef53916be2fab2c3",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/libunistring/libunistring5/libunistring5-1.4.1-1-x86_64.tar.xz",
+      "size": 498220,
+      "hash": "cbd454f5068bfb9291d440a3b03b0c58437aa0342a199007d5cce6fa006b6b5ea4d3ba10c136fb0257ffb0d0199db73484275c632506e4ec31c81e1746667b80",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/libunistring/libunistring-1.4.1-1-src.tar.xz",
+      "size": 4747520,
+      "hash": "105bacc7118918a80255089dcad8a5605a5e2769c5ce7b5077d036a4a872a007693dd024bb6c3a84eaa47e8b2db825eb39bccd344a9f7cf78ffb3d90ec459111",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/util-linux/libuuid1/libuuid1-2.40.2-2.tar.xz",
+      "size": 12532,
+      "hash": "3ba0c5d5a401c88796077e9f45164532408882f2f5d9f0ab99b2fdf6eb915917250124cde3653a7c53b648866e091aa3baf3304d0b243337f0d4e254a7631f55",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/zstd/libzstd1/libzstd1-1.5.7-1.tar.zst",
+      "size": 253786,
+      "hash": "f89cdaa004487ec8c4796b8f56887c81f6f497873c1495b9cb585ffe6c8d6e6b8ad4b52617d5238075f965f1fe001da287d9a00d121590274b2d87672b415a0f",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/zstd/zstd-1.5.7-1-src.tar.zst",
+      "size": 1868357,
+      "hash": "70e7e40283b8f7783b5545b249e4afc815fe1ac625786ad9e6e6ef50a733d0cf8b810ccea280786dd30f7b82af837f7fc09efe0f3cd0ca146d9c231648f3cc64",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/openssl/openssl-3.5.9-1-x86_64.tar.zst",
+      "size": 1412450,
+      "hash": "c90b46cc126846817673dce971f0b2c5ef7c6d3a4e00b19eb041593a2c6aa66385d98fc153f7ba30791515d914f07970248c80ee3a5c6798901dcd89af3c7ac7",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/p11-kit/p11-kit-0.26.5-1-x86_64.tar.xz",
+      "size": 332724,
+      "hash": "1f057de789a5553f04649c80e6f78385135b57de7ba078e9dd51f2db60afee37717bb6de9dcf0a330cf72fce1359e08c0186988632b5f858992ebf95739bb840",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/p11-kit/p11-kit-trust/p11-kit-trust-0.26.5-1-x86_64.tar.xz",
+      "size": 110096,
+      "hash": "2f98ae11e42f69fa4626638f7cefe2ba2fed808ae618093c1e6c568f8a8be79e6690b40e39e20df02a8d363c371cca8b8320fea7b288e8561cd299f15cc5b796",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/perl/perl-5.44.0-1-x86_64.tar.zst",
+      "size": 5129424,
+      "hash": "42f80064ff94ea778319a24e011d4a7236944c79d9db22e0ed64a7ca7d9b65bc2df5998130eb64c50aa95c173937776cc42665174c5717e84fe6dca523368f27",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/perl/perl-5.44.0-1-src.tar.zst",
+      "size": 14927805,
+      "hash": "26be3a3db4ed18e20898825d4503189a0e1fa6b326800f5a9b26c4dfe5d2fa6c976f918d75565610a8e74877ac7c6e0e328808d34fc0c7b1205e7dc579fdaae6",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/perl/perl_autorebase/perl_autorebase-5.44.0-1-x86_64.tar.zst",
+      "size": 175,
+      "hash": "55cd94604cfa3e2491df45e5a3715f32b2dee8298a656ca2da8de2eba4096329c595228a8c950760e9641b2c6097309571350c0ffe1c8d13759eb76ec841a4f8",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/perl/perl_base/perl_base-5.44.0-1-x86_64.tar.zst",
+      "size": 3772189,
+      "hash": "3039e7a60c950cd682d8372f948ec83f7ebea27e9b425ab7406ed2eff0bebb80f7622423cf82b9ab07e34deb183bdf1b56fe129c8306bd2cfb04e7cd96beb992",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/procps-ng/procps-ng-4.0.7-3-x86_64.tar.zst",
+      "size": 794844,
+      "hash": "2703d3b29ec2031c9af3c384fb174193a39dee31c1586103b7803e842b0d81c29601bdfbd90549ee37461338ddc48b32e30e017d72af3110fbc342b8218a3d9f",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/psmisc/psmisc-23.4-4.tar.xz",
+      "size": 187408,
+      "hash": "38aa681fa0754bb47b10e45d1a8f5116a3d5f4222ab5c08d45f0452ffb93ba24467dc288049ba5eea8ad5f8850ad85c1b1d8d2054e970e2ca9e342b736a18b79",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/psmisc/psmisc-23.4-4-src.tar.xz",
+      "size": 371776,
+      "hash": "953d6567ad15c99dbf813805780f035d7a223ad2dc153f57a112c3573a1171050660517368ee4be1b738efd2c67f15220c3dca393fc7a96be2c4a5bdd1690a18",
+      "kind": "source"
+    },
+    {
+      "path": "noarch/release/publicsuffix-list/publicsuffix-list-dafsa/publicsuffix-list-dafsa-20260724-1-noarch.tar.xz",
+      "size": 52696,
+      "hash": "283f77ab69512f8530f98ada3045c8b809077b2b8837dc270e3f4d12c5ff497f42bd90d43e5afac19a31bf7c2ee2fc244d89086378ce4f4773605c34acf34f0b",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/publicsuffix-list/publicsuffix-list-20260724-1-src.tar.xz",
+      "size": 307496,
+      "hash": "dfe6986bd714fc9277714d6da85f6d6d7aca35a10f77892ac8cba2b32e1c65de2f15a7fde91916a748d97e3185b47a6eab993b122dbfe318605bc35e2e12c926",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/sed/sed-4.10-1-x86_64.tar.xz",
+      "size": 359252,
+      "hash": "da5475344a1693f90fb560773ccca48eaf13af0e6bbcada9dcea658862bf7f46043b2d7365de0e2e235fb9a874fe784ad83bc29eb2fdbf3207cd8ad5e127b8b9",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/sed/sed-4.10-1-src.tar.xz",
+      "size": 1737036,
+      "hash": "0b327f8771e53f940b082c93667e480217264f9fa84cf7965e589b1b2dc531b279ee385f57377ec48481169e7f10bcd5ecae9fa44d5ea3c085014fd1d90a5dbd",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/ncurses/terminfo/terminfo-6.5+20240427-1.tar.xz",
+      "size": 94760,
+      "hash": "128fb04f188bbf2af3060416193c9879a9cbbf7e5486febf851f35c3d9d00b9d61a0e2bf4be575d2308fd665a224ce5674485dcfd071125c3a8d199a4b88a042",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/tzcode/tzcode-2026f-1-x86_64.tar.xz",
+      "size": 187836,
+      "hash": "fa4bb1117c7faa0efc23a69a2576956c831943c71e4cbf593c992840e1770cbffbc4011cb0269e22d560f960ff2eb8bd86e5d54690f2901c4d860387cf102d5b",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/tzcode/tzcode-2026f-1-src.tar.xz",
+      "size": 333788,
+      "hash": "1ae49dde5f8764d6240a394ea114896b167b2139b9f8257a8e78b3ca0c837632de570007c0b1c0b72d786b2303ad874eabaffd28e0b5043c3b988a47bbc5875b",
+      "kind": "source"
+    },
+    {
+      "path": "noarch/release/tzdata/tzdata-2026f-1-noarch.tar.xz",
+      "size": 186144,
+      "hash": "581e9a9f9310081ec8357c3038b6822fdf68a4f96a89c0b64b5c74cae12fb1961b4ea3cbdf47754f5cf82e1cf31c532f3a7a81d66f82a6463b8fa9fd746dfa79",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/tzdata/tzdata-2026f-1-src.tar.xz",
+      "size": 490108,
+      "hash": "07f7434111722244a1d088b760f05346a276591339b7b10f9f2494da80afe2a5f0657a1cb8fc936c16c5ad5d06c75df54fcb7613f6e3f743d81a4cd0b5267488",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/util-linux/util-linux-2.40.2-2.tar.xz",
+      "size": 2053568,
+      "hash": "4f3473472e32bff586401ec31f1423237c9cb112ae1140cdd8b2797040c5c182632f49f5354eaaa409d2dacba7767d5baa8b8926d7638e2725ad80065b46c10b",
+      "kind": "install"
+    },
+    {
+      "path": "x86_64/release/which/which-2.25-1-x86_64.tar.xz",
+      "size": 31388,
+      "hash": "d6452f6c237603be1cd9d3acab16b4aeb10c66c3d06602a60c05a893eec7e049e1d5a6bcd299181f088d34628362a8e28c08dee9db11c3cc2ca61f30ee1b550f",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/which/which-2.25-1-src.tar.xz",
+      "size": 205068,
+      "hash": "2b000f90207b672f3293f4ca57a45ee0648ce8403ed415830fd714d89058c1e5b64b42df367329a8eb208b94498cbc3f445219ea4a5adbb03ba72f679371235f",
+      "kind": "source"
+    },
+    {
+      "path": "x86_64/release/zlib/zlib0/zlib0-1.4-1-x86_64.tar.zst",
+      "size": 46925,
+      "hash": "2aa35b5560283f6ace3f53af7df5feab55de5f3bed4edbb4ee8da9d2a498ff9c031b3276a8267cc963fe717f5ee25c6440ec42103b6cc92f7ecc387f9f0bb63c",
+      "kind": "install"
+    },
+    {
+      "path": "src/release/zlib/zlib-1.4-1-src.tar.zst",
+      "size": 1322042,
+      "hash": "346253796d80bb47ab86d6c8ffd47fd139cf48dd2353e8a11d96e47fb655832475dc570d00fd95ed653fb9c738341c387cedb59a83530f71182e71d662b9b8f2",
+      "kind": "source"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+namespace GxbrielZapret.Models;
+
+/// <summary>What the auto-selector optimises for: a strategy that works for Discord
+/// and YouTube at the same time.
+/// NOTE: Telegram is intentionally NOT a scope — it isn't handled by a DPI desync at all but by the
+/// built-in tg-ws-proxy (TelegramProxyService). Autoselect scores by a TLS handshake to the goal
+/// host, which can't validate a proxied MTProto path anyway, so Telegram stays out of the picker.</summary>
+public enum AutoScope { Both, Discord, YouTube }
+
+public static class AutoScopeExt
+{
+    public static string Title(this AutoScope s) => s switch
+    {
+        AutoScope.Discord => "Discord",
+        AutoScope.YouTube => "YouTube",
+        _ => "Discord + YouTube",
+    };
+
+    /// <summary>Endpoints used to score every candidate. Strategies are never split by service.</summary>
+    public static string[] GoalHosts(this AutoScope s)
+    {
+        // Mirror Flowseal's blockcheck targets so a passing candidate here means the same thing the
+        // community calls "working": Discord Main/Gateway/CDN/Updates, YouTube Web/Short/Image/Redirect.
+        // challenges.cloudflare.com = the Cloudflare Turnstile bot-challenge Discord's LOGIN loads.
+        // It's in the discord hostlist, so it's probed WITH each candidate's Discord desync — a
+        // candidate that doesn't pass it (TLS ok, request resets) really won't let you log in, so
+        // scoring it here makes the pick reflect "login actually works", not just "the site opens".
+        string[] discord = { "discord.com", "gateway.discord.gg", "cdn.discordapp.com",
+                             "updates.discord.com", "challenges.cloudflare.com" };
+        string[] youtube = { "www.youtube.com", "youtu.be", "i.ytimg.com", "redirector.googlevideo.com" };
+        return s switch
+        {
+            AutoScope.Discord => discord,
+            AutoScope.YouTube => youtube,
+            _ => discord.Concat(youtube).ToArray()
+        };
+    }
+}

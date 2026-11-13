@@ -1,0 +1,332 @@
+<Project>
+  <PropertyGroup>
+    <AssemblyName>GXBRIEL_ZAPRET</AssemblyName>
+    <IntermediateOutputPath>obj\Debug\</IntermediateOutputPath>
+    <BaseIntermediateOutputPath>obj\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>G:\!VS_MY_PROJECT\!ZAPRET_GXBRIEL\GXBRIEL_ZAPRET\ui\GxbrielZapret\obj\</MSBuildProjectExtensionsPath>
+    <_TargetAssemblyProjectName>GxbrielZapret</_TargetAssemblyProjectName>
+    <RootNamespace>GxbrielZapret</RootNamespace>
+  </PropertyGroup>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GxbrielZapret</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <Version>4.0.1</Version>
+    <Product>GXBRIEL_ZAPRET</Product>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <!-- Self-contained single-file publish so the user needs nothing installed -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Compression is deliberately OFF: it trades RAM for disk at a bad rate. Uncompressed assemblies
+         are memory-MAPPED out of the exe (file-backed pages the OS can evict); compressed ones must be
+         decompressed into private memory at startup. Measured: on a minimal WPF app with these exact
+         settings compression cost +100 MB working set / +59 MB private; on THIS app it saved 93.5 MB on
+         disk (72.4 MB compressed vs 166.0 MB). So the trade is roughly 1:1 — ~94 MB of download for
+         ~100 MB of RAM. This app sits in the tray all day, so the memory side wins. Re-enable only with
+         a fresh measurement. -->
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <!-- NB: InvariantGlobalization is NOT usable here — WPF's own font cache
+         (MS.Internal.FontCache.MajorLanguages) constructs named CultureInfo("en"/…) and throws
+         CultureNotFoundException in invariant mode, crashing every text render. Verified via the
+         screenshot harness. (Could be revisited with PredefinedCulturesOnly=false, but needs its own
+         WPF-render verification and only saves ~6 MB over compression alone.) -->
+    <EnableComHosting>false</EnableComHosting>
+    <!-- WPF handles DPI via app.manifest; silence the WinForms-only DPI analyzer -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+  </PropertyGroup>
+  <Target Name="PackBlockcheckRuntime" BeforeTargets="PrepareForBuild" Condition="Exists('$(MSBuildProjectDirectory)\..\..\core\cygwin\bin')">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\tools\pack-blockcheck2.ps1&quot;" />
+  </Target>
+  <ItemGroup>
+    <!-- WinForms is only used for the tray NotifyIcon; avoid the global using
+         so System.Windows.Application (WPF) is not ambiguous everywhere. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <Compile Remove="tests\**" />
+    <EmbeddedResource Remove="tests\**" />
+    <None Remove="tests\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Open internal types to test project -->
+    <InternalsVisibleTo Include="GxbrielZapret.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="System.Management" Version="9.0.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- RU→EN UI string table, loaded at runtime by Localization/Loc.cs when the language is English.
+         Embedded (not a loose file) so it travels inside the single-file exe. WithCulture=false +
+         LogicalName are REQUIRED: the ".en." in the name makes MSBuild treat it as an English SATELLITE
+         resource (routed to an en\GxbrielZapret.resources.dll), where GetManifestResourceStream on the main
+         assembly can't see it. These pin it into the main assembly under a fixed name. -->
+    <EmbeddedResource Include="Localization\strings.en.json" WithCulture="false" LogicalName="GxbrielZapret.Localization.strings.en.json" />
+    <EmbeddedResource Include="Assets\release-public-key.pem" LogicalName="GXBRIEL_ZAPRET.release-public-key.pem" />
+    <EmbeddedResource Include="Assets\third-party-notices.zip" LogicalName="GXBRIEL_ZAPRET.third-party-notices.zip" />
+    <!-- Pinned official engine manifest for supply-chain validation -->
+    <EmbeddedResource Include="engine\engine-manifest.json" LogicalName="GXBRIEL_ZAPRET.engine.engine-manifest.json" />
+    <!-- Self-contained zapret2 runtime payload for offline first-run bootstrap. -->
+    <EmbeddedResource Include="engine\zapret2-runtime.zip" LogicalName="GXBRIEL_ZAPRET.engine.zapret2-runtime.zip" />
+    <!-- Self-contained BlitzFix/TCPView capture tools for offline live endpoint capture. -->
+    <EmbeddedResource Include="engine\blitzfix-tools.zip" LogicalName="GXBRIEL_ZAPRET.engine.blitzfix-tools.zip" />
+    <EmbeddedResource Include="engine\blockcheck2-runtime.zip" LogicalName="GXBRIEL_ZAPRET.engine.blockcheck2-runtime.zip" />
+    <!-- Portable first-run list pack: these are the known-good LoL/Riot/Blitz/Discord/Youtube lists
+         shipped inside the exe so a clean machine does not depend on this checkout's profiles folder. -->
+    <EmbeddedResource Include="..\..\profiles\lists\*.txt" LogicalName="GXBRIEL_ZAPRET.bundled-lists.%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Bundled OFL fonts (Hanken Grotesk / Space Grotesk / JetBrains Mono) so the
+         redesigned UI renders identically without the user installing anything. -->
+  </ItemGroup>
+  <ItemGroup>
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\Accessibility.dll" />
+    <ReferencePath Include="C:\Users\yata\.nuget\packages\communitytoolkit.mvvm\8.4.2\lib\net8.0\CommunityToolkit.Mvvm.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\Microsoft.CSharp.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\Microsoft.VisualBasic.Core.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\Microsoft.VisualBasic.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\Microsoft.VisualBasic.Forms.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\Microsoft.Win32.Primitives.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\Microsoft.Win32.Registry.AccessControl.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\Microsoft.Win32.Registry.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\Microsoft.Win32.SystemEvents.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\mscorlib.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\netstandard.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\PresentationCore.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\PresentationFramework.Aero.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\PresentationFramework.Aero2.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\PresentationFramework.AeroLite.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\PresentationFramework.Classic.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\PresentationFramework.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\PresentationFramework.Luna.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\PresentationFramework.Royale.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\PresentationUI.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\ReachFramework.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.AppContext.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Buffers.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.CodeDom.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Collections.Concurrent.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Collections.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Collections.Immutable.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Collections.NonGeneric.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Collections.Specialized.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.ComponentModel.Annotations.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.ComponentModel.DataAnnotations.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.ComponentModel.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.ComponentModel.EventBasedAsync.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.ComponentModel.Primitives.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.ComponentModel.TypeConverter.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Configuration.ConfigurationManager.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Configuration.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Console.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Core.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Data.Common.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Data.DataSetExtensions.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Data.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Design.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Diagnostics.Contracts.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Diagnostics.Debug.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Diagnostics.DiagnosticSource.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Diagnostics.EventLog.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Diagnostics.FileVersionInfo.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Diagnostics.PerformanceCounter.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Diagnostics.Process.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Diagnostics.StackTrace.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Diagnostics.TextWriterTraceListener.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Diagnostics.Tools.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Diagnostics.TraceSource.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Diagnostics.Tracing.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.DirectoryServices.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Drawing.Common.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Drawing.Design.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Drawing.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Drawing.Primitives.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Dynamic.Runtime.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Formats.Asn1.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Formats.Nrbf.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Formats.Tar.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Globalization.Calendars.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Globalization.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Globalization.Extensions.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.Compression.Brotli.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.Compression.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.Compression.FileSystem.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.Compression.ZipFile.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.FileSystem.AccessControl.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.FileSystem.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.FileSystem.DriveInfo.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.FileSystem.Primitives.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.FileSystem.Watcher.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.IsolatedStorage.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.MemoryMappedFiles.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.IO.Packaging.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.Pipelines.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.Pipes.AccessControl.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.Pipes.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.IO.UnmanagedMemoryStream.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Linq.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Linq.Expressions.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Linq.Parallel.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Linq.Queryable.dll" />
+    <ReferencePath Include="C:\Users\yata\.nuget\packages\system.management\9.0.2\lib\net9.0\System.Management.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Memory.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.Http.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.Http.Json.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.HttpListener.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.Mail.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.NameResolution.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.NetworkInformation.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.Ping.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.Primitives.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.Quic.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.Requests.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.Security.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.ServicePoint.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.Sockets.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.WebClient.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.WebHeaderCollection.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.WebProxy.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.WebSockets.Client.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Net.WebSockets.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Numerics.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Numerics.Vectors.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.ObjectModel.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Printing.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Private.Windows.Core.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Reflection.DispatchProxy.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Reflection.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Reflection.Emit.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Reflection.Emit.ILGeneration.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Reflection.Emit.Lightweight.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Reflection.Extensions.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Reflection.Metadata.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Reflection.Primitives.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Reflection.TypeExtensions.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Resources.Extensions.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Resources.Reader.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Resources.ResourceManager.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Resources.Writer.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.CompilerServices.Unsafe.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.CompilerServices.VisualC.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.Extensions.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.Handles.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.InteropServices.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.InteropServices.JavaScript.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.InteropServices.RuntimeInformation.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.Intrinsics.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.Loader.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.Numerics.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.Serialization.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.Serialization.Formatters.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.Serialization.Json.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.Serialization.Primitives.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Runtime.Serialization.Xml.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Security.AccessControl.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Security.Claims.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Security.Cryptography.Algorithms.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Security.Cryptography.Cng.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Security.Cryptography.Csp.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Security.Cryptography.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Security.Cryptography.Encoding.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Security.Cryptography.OpenSsl.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Security.Cryptography.Pkcs.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Security.Cryptography.Primitives.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Security.Cryptography.ProtectedData.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Security.Cryptography.X509Certificates.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Security.Cryptography.Xml.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Security.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Security.Permissions.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Security.Principal.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Security.Principal.Windows.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Security.SecureString.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.ServiceModel.Web.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.ServiceProcess.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Text.Encoding.CodePages.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Text.Encoding.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Text.Encoding.Extensions.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Text.Encodings.Web.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Text.Json.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Text.RegularExpressions.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Threading.AccessControl.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Threading.Channels.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Threading.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Threading.Overlapped.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Threading.Tasks.Dataflow.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Threading.Tasks.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Threading.Tasks.Extensions.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Threading.Tasks.Parallel.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Threading.Thread.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Threading.ThreadPool.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Threading.Timer.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Transactions.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Transactions.Local.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.ValueTuple.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Web.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Web.HttpUtility.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Windows.Controls.Ribbon.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Windows.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Windows.Extensions.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Windows.Forms.Design.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Windows.Forms.Design.Editors.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Windows.Forms.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Windows.Forms.Primitives.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Windows.Input.Manipulations.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Windows.Presentation.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\System.Xaml.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Xml.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Xml.Linq.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Xml.ReaderWriter.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Xml.Serialization.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Xml.XDocument.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Xml.XmlDocument.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Xml.XmlSerializer.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Xml.XPath.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\ref\net9.0\System.Xml.XPath.XDocument.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\UIAutomationClient.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\UIAutomationClientSideProviders.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\UIAutomationProvider.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\UIAutomationTypes.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\WindowsBase.dll" />
+    <ReferencePath Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\ref\net9.0\WindowsFormsIntegration.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="G:\!VS_MY_PROJECT\!ZAPRET_GXBRIEL\GXBRIEL_ZAPRET\ui\GxbrielZapret\obj\Debug\net9.0-windows\win-x64\Views\CheckWindow.g.cs" />
+    <Compile Include="G:\!VS_MY_PROJECT\!ZAPRET_GXBRIEL\GXBRIEL_ZAPRET\ui\GxbrielZapret\obj\Debug\net9.0-windows\win-x64\Views\ConfirmDialog.g.cs" />
+    <Compile Include="G:\!VS_MY_PROJECT\!ZAPRET_GXBRIEL\GXBRIEL_ZAPRET\ui\GxbrielZapret\obj\Debug\net9.0-windows\win-x64\Views\ConflictDialog.g.cs" />
+    <Compile Include="G:\!VS_MY_PROJECT\!ZAPRET_GXBRIEL\GXBRIEL_ZAPRET\ui\GxbrielZapret\obj\Debug\net9.0-windows\win-x64\Views\MainWindow.g.cs" />
+    <Compile Include="G:\!VS_MY_PROJECT\!ZAPRET_GXBRIEL\GXBRIEL_ZAPRET\ui\GxbrielZapret\obj\Debug\net9.0-windows\win-x64\App.g.cs" />
+    <Compile Include="G:\!VS_MY_PROJECT\!ZAPRET_GXBRIEL\GXBRIEL_ZAPRET\ui\GxbrielZapret\obj\Debug\net9.0-windows\win-x64\GeneratedInternalTypeHelper.g.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Analyzer Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\sdk\9.0.321\Sdks\Microsoft.NET.Sdk\targets\..\analyzers\Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll" />
+    <Analyzer Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\sdk\9.0.321\Sdks\Microsoft.NET.Sdk\targets\..\analyzers\Microsoft.CodeAnalysis.NetAnalyzers.dll" />
+    <Analyzer Include="C:\Users\yata\.nuget\packages\communitytoolkit.mvvm\8.4.2\analyzers\dotnet\roslyn4.12\cs\CommunityToolkit.Mvvm.CodeFixers.dll" />
+    <Analyzer Include="C:\Users\yata\.nuget\packages\communitytoolkit.mvvm\8.4.2\analyzers\dotnet\roslyn4.12\cs\CommunityToolkit.Mvvm.SourceGenerators.dll" />
+    <Analyzer Include="C:\Users\yata\.nuget\packages\microsoft.net.illink.tasks\9.0.23\analyzers\dotnet\cs\ILLink.CodeFixProvider.dll" />
+    <Analyzer Include="C:\Users\yata\.nuget\packages\microsoft.net.illink.tasks\9.0.23\analyzers\dotnet\cs\ILLink.RoslynAnalyzer.dll" />
+    <Analyzer Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\analyzers/dotnet/cs/Microsoft.Interop.ComInterfaceGenerator.dll" />
+    <Analyzer Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\analyzers/dotnet/cs/Microsoft.Interop.JavaScript.JSImportGenerator.dll" />
+    <Analyzer Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\analyzers/dotnet/cs/Microsoft.Interop.LibraryImportGenerator.dll" />
+    <Analyzer Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\analyzers/dotnet/cs/Microsoft.Interop.SourceGeneration.dll" />
+    <Analyzer Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\analyzers/dotnet/cs/System.Text.Json.SourceGeneration.dll" />
+    <Analyzer Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.23\analyzers/dotnet/cs/System.Text.RegularExpressions.Generator.dll" />
+    <Analyzer Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\analyzers/dotnet/System.Windows.Forms.Analyzers.dll" />
+    <Analyzer Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\analyzers/dotnet/cs/System.Windows.Forms.Analyzers.CSharp.dll" />
+    <Analyzer Include="C:\Users\yata\AppData\Local\Microsoft\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.23\analyzers/dotnet/cs/System.Windows.Forms.Analyzers.CodeFixes.CSharp.dll" />
+  </ItemGroup>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+</Project>

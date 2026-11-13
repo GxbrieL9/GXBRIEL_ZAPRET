@@ -1,0 +1,58 @@
+name: Проверка и выпуск Windows
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Получить исходный код
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Подготовить .NET 9
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: '9.0.x'
+      - name: Проверить подпись обновлений, откат и интерфейс
+        shell: pwsh
+        run: >-
+          dotnet test ui/GxbrielZapret/tests/GxbrielZapret.Tests/GxbrielZapret.Tests.csproj
+          -c Release --filter "FullyQualifiedName~AppUpdateTests|FullyQualifiedName~Antigravity|FullyQualifiedName~UiCrashRegression|FullyQualifiedName~PortablePathAndMigrationTests"
+          --logger "trx;LogFileName=windows.trx" --results-directory artifacts/tests
+      - name: Сохранить результаты проверок
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Проверки-Windows
+          path: artifacts/tests
+      - name: Проверить совпадение тега и версии
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content ui/GxbrielZapret/GxbrielZapret.csproj
+          $version = [string]($project.Project.PropertyGroup | Where-Object Version | Select-Object -First 1).Version
+          if ($env:GITHUB_REF_NAME -ne "v$version") { throw 'Тег не совпадает с версией проекта.' }
+      - name: Получить исходники зависимостей
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download dependencies-2026-11 --repo ${{ github.repository }} --pattern third-party-sources.zip --dir artifacts/dependencies
+      - name: Собрать и подписать выпуск
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: ./tools/new-public-release.ps1 -SourcesArchive artifacts/dependencies/third-party-sources.zip
+      - name: Подготовить черновик выпуска
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release create $env:GITHUB_REF_NAME --draft --verify-tag --title "GXBRIEL_ZAPRET $env:GITHUB_REF_NAME" --notes-file docs/ИЗМЕНЕНИЯ.md artifacts/public-release/release/GXBRIEL_ZAPRET.exe artifacts/public-release/release/GXBRIEL_ZAPRET-win-x64.zip artifacts/public-release/release/app-update.json artifacts/public-release/release/app-update.sig artifacts/public-release/release/SHA256SUMS.txt artifacts/public-release/release/third-party-sources.zip
