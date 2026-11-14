@@ -2835,7 +2835,7 @@
                         </Button>
 
                         <!-- App Version Tag -->
-                        <TextBlock Text="v4.0.0" FontSize="11" FontFamily="{StaticResource MonoFont}"
+                        <TextBlock Text="{Binding AppVersion}" FontSize="11" FontFamily="{StaticResource MonoFont}"
                                    Foreground="{StaticResource FgMutedBrush}" VerticalAlignment="Center" Opacity="0.7"/>
                     </StackPanel>
                 </Grid>

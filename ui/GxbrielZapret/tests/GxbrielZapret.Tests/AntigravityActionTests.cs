@@ -7,6 +7,18 @@ namespace GxbrielZapret.Tests;
 
 public sealed class AntigravityActionTests : IDisposable
 {
+    [Fact]
+    public void AppAndIdeAreSeparateProductsWhileDuplicateAppsRequireSelection()
+    {
+        Write("app/Antigravity.exe");
+        Write("ide/Antigravity IDE.exe");
+        string server = Write("app/resources/bin/language_server.exe");
+        string app = Path.Combine(_root, "app"), ide = Path.Combine(_root, "ide");
+        Assert.False(AntigravityDiscovery.RequiresSelection([ide, app]));
+        Assert.Equal(server, AntigravityDiscovery.Find(null, [ide, app])["LanguageServer"]);
+        Write("second-app/Antigravity.exe");
+        Assert.True(AntigravityDiscovery.RequiresSelection([app, ide, Path.Combine(_root, "second-app")]));
+    }
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

@@ -98,7 +98,7 @@ public static class AntigravityPatcherService
                 result.Logs.Add(result.ProxyDiagnostic);
                 var paths = AntigravityDiscovery.Find(root);
                 result.Installations = AntigravityDiscovery.FindInstallations();
-                result.SelectionRequired = string.IsNullOrWhiteSpace(root) && result.Installations.Count > 1;
+                result.SelectionRequired = string.IsNullOrWhiteSpace(root) && AntigravityDiscovery.RequiresSelection(result.Installations);
                 result.InstallationRoot = paths.Where(p => p.Key is "LanguageServer" or "Ide" or "VsCode")
                     .Select(p => AntigravityDiscovery.InstallRootFor(p.Value)).FirstOrDefault(p => p is not null);
                 result.Agy.RequiredForIde = result.InstallationRoot is not null &&

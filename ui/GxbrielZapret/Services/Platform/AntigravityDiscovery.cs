@@ -4,6 +4,13 @@ namespace GxbrielZapret.Services.Platform;
 
 internal static class AntigravityDiscovery
 {
+    internal static bool RequiresSelection(IReadOnlyList<string> installations)
+    {
+        // App and IDE are separate products. Prefer App during automatic discovery;
+        // only multiple installations of the chosen product require a choice.
+        int apps = installations.Count(r => File.Exists(Path.Combine(r, "Antigravity.exe")));
+        return apps > 0 ? apps > 1 : installations.Count > 1;
+    }
     internal static IReadOnlyList<string> FindInstallations(IReadOnlyList<string>? searchRoots = null)
     {
         var roots = searchRoots ?? new[] { Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "\\Programs",
@@ -39,7 +46,7 @@ internal static class AntigravityDiscovery
         }
         var result = new Dictionary<string, string>();
         // One desktop installation per report. Never fill a missing component from another product/version.
-        string? desktopRoot = manual ? roots[0] : roots.FirstOrDefault(r =>
+        string? desktopRoot = manual ? roots[0] : roots.FirstOrDefault(r => File.Exists(Path.Combine(r, "Antigravity.exe"))) ?? roots.FirstOrDefault(r =>
             File.Exists(Path.Combine(r, "Antigravity.exe")) || File.Exists(Path.Combine(r, "Antigravity IDE.exe")));
         void Add(string key, IEnumerable<string> candidates)
         {
