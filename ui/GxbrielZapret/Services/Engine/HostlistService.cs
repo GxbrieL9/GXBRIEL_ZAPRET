@@ -481,7 +481,8 @@ public sealed class HostlistService
     {
         "riotgames.com", "riotcdn.net", "leagueoflegends.com", "pvp.net",
         "playvalorant.com", "teamfighttactics.com", "legendsofruneterra.com",
-        "wildrift.com", "vivox.com", "splice.com", "cloudinary.com", "auth0.com"
+        "wildrift.com", "vivox.com", "splice.com", "cloudinary.com", "auth0.com",
+        "s3-us-west-1.amazonaws.com", "spliceproduction.s3.us-west-1.amazonaws.com", "spliceproduction.s3.amazonaws.com"
     };
 
     private static bool IsProtectedGameDomain(string domain) =>

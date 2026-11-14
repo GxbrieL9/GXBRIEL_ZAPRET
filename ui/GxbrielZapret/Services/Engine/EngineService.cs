@@ -280,7 +280,7 @@ public sealed partial class EngineService : IDisposable
         args.InsertRange(firstProfile, new[]
         {
             "--filter-tcp=80,443-65535", "--filter-udp=443-65535", "--filter-l7=http,tls,quic",
-            "--hostlist-domains=splice.com,api.splice.com,desktop.splice.com,spliceblob.splice.com,spliceproduction.s3.us-west-1.amazonaws.com,spliceproduction.s3.amazonaws.com,splice-res.cloudinary.com,res.cloudinary.com,auth0.com,cdn.auth0.com,ps.pndsn.com,pubnub.net,pubsub.pubnub.com",
+            "--hostlist-domains=splice.com,api.splice.com,desktop.splice.com,spliceblob.splice.com,s3-us-west-1.amazonaws.com,spliceproduction.s3.us-west-1.amazonaws.com,spliceproduction.s3.amazonaws.com,splice-res.cloudinary.com,res.cloudinary.com,auth0.com,cdn.auth0.com,ps.pndsn.com,pubnub.net,pubsub.pubnub.com",
             "--new"
         });
     }

@@ -39,6 +39,7 @@ public sealed class SpliceDirectRoutingTests
             Assert.Contains("desktop.splice.com", hosts);
             Assert.Contains("spliceblob.splice.com", hosts);
             Assert.Contains("spliceproduction.s3.us-west-1.amazonaws.com", hosts);
+            Assert.Contains("s3-us-west-1.amazonaws.com", hosts);
 
             int firstDesync = args.FindIndex(a => a.StartsWith("--lua-desync="));
             Assert.True(firstDesync < 0 || end < firstDesync, $"{strategy.Id}: Splice direct rule must precede any desync profile");
