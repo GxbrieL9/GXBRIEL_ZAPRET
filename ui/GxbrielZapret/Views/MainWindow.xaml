@@ -2169,12 +2169,13 @@
                             </Grid>
                             <TextBlock Text="{Binding PatcherStatusMessage}" TextWrapping="Wrap" Margin="0,0,0,8" FontSize="12" Foreground="{StaticResource FgMutedBrush}"/>
                             <TextBlock Text="{Binding PatcherActionSummary}" TextWrapping="Wrap" Margin="0,0,0,6" FontSize="12"/>
+                            <TextBlock Text="{Binding PatcherServerStatus}" TextWrapping="Wrap" Margin="0,0,0,8" FontSize="12" Foreground="{StaticResource WarnBrush}"/>
                             <TextBlock Text="{Binding PatcherLauncherDisplay}" TextTrimming="CharacterEllipsis" ToolTip="{Binding PatcherLauncherDisplay}" FontFamily="{StaticResource MonoFont}" Margin="0,0,0,6" FontSize="10.5" Foreground="{StaticResource FgMutedBrush}"/>
                             <TextBlock Text="{Binding PatcherCheckedAt}" Margin="0,0,0,8" FontSize="11" Foreground="{StaticResource FgMutedBrush}"/>
                             <CheckBox Content="{loc:Loc 'Следить за обновлениями Antigravity'}" IsChecked="{Binding PatcherMonitorEnabled}" Margin="0,0,0,10"/>
                             <CheckBox Content="Автоматически применять совместимый патч после обновления" IsChecked="{Binding PatcherAutoPatchEnabled}" Margin="0,0,0,10" ToolTip="После завершения обновления и закрытия Antigravity. Процессы не завершаются автоматически; неизвестная структура файла не изменяется."/>
                             <CheckBox Content="Запускать без AG_LS_PROXY" Foreground="{StaticResource FgBrush}" IsChecked="{Binding PatcherDirectConnection}" IsEnabled="{Binding CanRunPatcher}" Margin="0,0,0,10"
-                                      ToolTip="Сохраняемый режим запуска: исключает AG_LS_PROXY только для Antigravity, включая значение, унаследованное от GX. Системные настройки и DNS не меняются."/>
+                                      ToolTip="Исключает AG_LS_PROXY только при запуске Antigravity из GX. При серверном отказе по местоположению прямое подключение может оставаться недоступным. Эта галочка не включает прокси или VPN."/>
                             <TextBlock Text="{Binding PatcherUpdateMessage}" TextWrapping="Wrap" Margin="0,0,0,10" FontSize="12" Foreground="{StaticResource WarnBrush}"
                                        Visibility="{Binding HasPatcherUpdateMessage, Converter={StaticResource BoolToVis}}"/>
                             <ProgressBar IsIndeterminate="True" Height="3" Margin="0,0,0,10" Visibility="{Binding IsPatcherBusy, Converter={StaticResource BoolToVis}}"/>
@@ -2462,7 +2463,7 @@
                                                     <TextBlock Text="{Binding UpdateStatus}" Style="{StaticResource Muted}"
                                                                FontSize="11.5" Margin="0,0,0,8"
                                                                Visibility="{Binding UpdateStatus, Converter={StaticResource StringNotEmptyToVis}}"/>
-                                                    <CheckBox Content="{loc:Loc 'Автоматически обновлять движок при запуске'}"
+                                                    <CheckBox Content="Проверять совместимое ядро при запуске"
                                                               IsChecked="{Binding AutoUpdateEngine}" Style="{StaticResource ToggleSwitch}"
                                                               Margin="0,4"/>
                                                 </StackPanel>

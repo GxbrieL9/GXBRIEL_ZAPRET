@@ -74,6 +74,8 @@ public sealed partial class MainViewModel
     }
     private string _patcherStatusMessage = "Компоненты ещё не проверены. Ответ модели не проверен.";
     public string PatcherStatusMessage { get => _patcherStatusMessage; private set => SetField(ref _patcherStatusMessage, value); }
+    private string _patcherServerStatus = "Ответ модели не проверен.";
+    public string PatcherServerStatus { get => _patcherServerStatus; private set => SetField(ref _patcherServerStatus, value); }
     private string _patcherLog = "";
     public string PatcherLog { get => _patcherLog; private set => SetField(ref _patcherLog, value); }
 
@@ -222,6 +224,7 @@ public sealed partial class MainViewModel
     internal void ApplyPatcherResult(AntigravityStatusResult result)
     {
         _patcherSelectionRequired = result.SelectionRequired;
+        PatcherServerStatus = result.ServerDiagnostic;
         PatcherLs = result.LanguageServer; PatcherIde = result.Ide; PatcherVsCode = result.VsCode; PatcherAgy = result.Agy;
         OnPropertyChanged(nameof(PatcherComponents));
         PatcherLauncherPath = result.SelectionRequired ? null : ResolvePatcherLauncher(PatcherInstallRoot, PatcherComponents);

@@ -72,6 +72,7 @@ public sealed class AntigravityStatusResult
     public int ChangedCount { get; set; }
     public string Summary { get; set; } = "";
     public string ProxyDiagnostic { get; set; } = "";
+    public string ServerDiagnostic { get; set; } = "";
     public bool SelectionRequired { get; set; }
     public string? InstallationRoot { get; set; }
     public IReadOnlyList<string> Installations { get; set; } = [];
@@ -95,6 +96,7 @@ public static class AntigravityPatcherService
             {
                 var result = new AntigravityStatusResult { Timestamp = DateTime.UtcNow.ToString("O") };
                 result.ProxyDiagnostic = AntigravityProxyDiagnostic.Read();
+                result.ServerDiagnostic = AntigravityServerDiagnostic.Read();
                 result.Logs.Add(result.ProxyDiagnostic);
                 var paths = AntigravityDiscovery.Find(root);
                 result.Installations = AntigravityDiscovery.FindInstallations();

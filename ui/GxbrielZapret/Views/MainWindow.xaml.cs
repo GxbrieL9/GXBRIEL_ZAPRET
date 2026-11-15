@@ -73,7 +73,7 @@ public partial class MainWindow : Window
         if (!screenshotHarness && !(startInTray && _vm.MinimizeToTray))
         {
             var conflicts = await Task.Run(ConflictScanService.ScanConflicts);
-            if (conflicts.Count > 0) ConflictDialog.Show(conflicts);
+            if (conflicts.Count > 0) ConflictDialog.Show(conflicts, modal: false);
         }
 
         if (!_vm.IsInitialized)

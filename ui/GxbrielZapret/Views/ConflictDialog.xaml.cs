@@ -53,14 +53,15 @@ public partial class ConflictDialog : Window
     /// </summary>
     internal static Window CreateForHarness(IReadOnlyList<EnvFinding> items) => new ConflictDialog(items);
 
-    /// <summary>Shows the advisory modally (no-op semantics — nothing is returned).</summary>
-    public static void Show(IReadOnlyList<EnvFinding> items)
+    /// <summary>Startup advisories are modeless so recovery can initialize without user input.</summary>
+    public static void Show(IReadOnlyList<EnvFinding> items, bool modal = true)
     {
         var owner = Application.Current?.MainWindow;
         var dlg = new ConflictDialog(items);
         if (owner is not null && owner.IsLoaded) dlg.Owner = owner;
         else dlg.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        dlg.ShowDialog();
+        if (modal) dlg.ShowDialog();
+        else dlg.Show();
     }
 
     private void OnOk(object sender, RoutedEventArgs e) => Close();

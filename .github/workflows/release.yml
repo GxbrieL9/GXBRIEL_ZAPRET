@@ -23,7 +23,7 @@ jobs:
         shell: pwsh
         run: >-
           dotnet test ui/GxbrielZapret/tests/GxbrielZapret.Tests/GxbrielZapret.Tests.csproj
-          -c Release --filter "FullyQualifiedName~AppUpdateTests|FullyQualifiedName~Antigravity|FullyQualifiedName~UiCrashRegression|FullyQualifiedName~PortablePathAndMigrationTests"
+          -c Release --filter "FullyQualifiedName~EngineUpdatePolicyTests|FullyQualifiedName~AppUpdateTests|FullyQualifiedName~Antigravity|FullyQualifiedName~UiCrashRegression|FullyQualifiedName~PortablePathAndMigrationTests|FullyQualifiedName~SpliceDirectRouting"
           --logger "trx;LogFileName=windows.trx" --results-directory artifacts/tests
       - name: Сохранить результаты проверок
         if: always()

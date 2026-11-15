@@ -555,6 +555,7 @@ public sealed partial class MainViewModel
     public async Task CheckAndUpdateAsync(bool silent)
     {
         if (IsUpdating) return;
+        bool resumeEngine = IsRunning;
         IsUpdating = true;
 
         // The engine binary disappeared while its version stamp stayed behind — nothing here deletes it,
@@ -667,7 +668,7 @@ public sealed partial class MainViewModel
             }
             else
             {
-                UpdateStatus = Loc.T("Актуальная версия: {0}", latest.Tag);
+                UpdateStatus = $"Установлено проверенное совместимое ядро {latest.Tag}. Новые версии ядра допускаются после обновления программы.";
                 if (!silent)
                     Notify?.Invoke("GXBRIEL_ZAPRET", Loc.T("Установлена актуальная версия движка ({0}).", latest.Tag));
             }
@@ -676,6 +677,7 @@ public sealed partial class MainViewModel
         {
             IsUpdating = false;
             IsDownloadingEngine = false;
+            if (resumeEngine && !IsRunning && CanStart) Start();
         }
     }
 

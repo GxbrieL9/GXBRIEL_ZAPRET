@@ -22,15 +22,18 @@ namespace GxbrielZapret.Services.Infrastructure;
 public sealed class UpdaterService
 {
     private const string EngineRepo = "bol-van/zapret2";
-    private const string ReleasesLatestApi =
-        "https://api.github.com/repos/bol-van/zapret2/releases/latest";
+    internal static string SupportedEngineTag => GxbrielZapret.Services.Engine.EngineValidator.LoadManifest().Version;
+    private static string SupportedReleaseApi =>
+        $"https://api.github.com/repos/{EngineRepo}/releases/tags/{Uri.EscapeDataString(SupportedEngineTag)}";
 
-    // App self-update check intentionally disabled — GXBRIEL_ZAPRET is a private build,
-    // there is no public release feed to poll. Kept as stub to avoid removing call sites.
+    // Engine trust is shipped with the signed application. Do not fetch a newer
+    // engine and then compare it against a different version's pinned hash.
 
     private readonly HttpClient _http;
     internal HttpClient ReleaseHttp => _http;
     private readonly DohResolver _doh = new();
+
+    internal UpdaterService(HttpClient http) => _http = http;
 
     public UpdaterService()
     {
@@ -193,7 +196,7 @@ public sealed class UpdaterService
     /// <summary>Latest release via api.github.com (JSON).</summary>
     private async Task<ReleaseInfo> FetchLatestViaApiAsync(CancellationToken ct)
     {
-        using var resp = await _http.GetAsync(ReleasesLatestApi, ct).ConfigureAwait(false);
+        using var resp = await _http.GetAsync(SupportedReleaseApi, ct).ConfigureAwait(false);
         resp.EnsureSuccessStatusCode();
         await using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
         using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
@@ -201,6 +204,7 @@ public sealed class UpdaterService
         var root = doc.RootElement;
         string tag = root.GetProperty("tag_name").GetString()
             ?? throw new InvalidOperationException(Loc.T("В ответе GitHub нет tag_name."));
+        RequireSupportedTag(tag);
 
         string? zipUrl = null, shaUrl = null;
         long zipSize = 0;
@@ -212,8 +216,7 @@ public sealed class UpdaterService
 
             // The all-platforms bundle, e.g. zapret2-v1.0.1.zip
             // (exclude the openwrt-embedded variant which is .tar.gz anyway)
-            if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
-                !name.Contains("openwrt", StringComparison.OrdinalIgnoreCase))
+            if (name.Equals($"zapret2-{tag}.zip", StringComparison.OrdinalIgnoreCase))
             {
                 zipUrl = url;
                 zipSize = asset.TryGetProperty("size", out var s) ? s.GetInt64() : 0;
@@ -234,15 +237,15 @@ public sealed class UpdaterService
     /// the expanded_assets partial gives the download links. Asset size is unknown (0).</summary>
     private async Task<ReleaseInfo> FetchLatestViaWebAsync(CancellationToken ct)
     {
-        // 1. The tag — github.com/<repo>/releases/latest 302-redirects to …/releases/tag/<tag>.
+        // Use the same pinned release on the HTML fallback, never /latest.
+        string tag = SupportedEngineTag;
         using var resp = await _http.GetAsync(
-            $"https://github.com/{EngineRepo}/releases/latest", ct).ConfigureAwait(false);
+            $"https://github.com/{EngineRepo}/releases/tag/{Uri.EscapeDataString(tag)}", ct).ConfigureAwait(false);
         resp.EnsureSuccessStatusCode();
         string finalUrl = resp.RequestMessage?.RequestUri?.ToString() ?? "";
         int i = finalUrl.IndexOf("/tag/", StringComparison.Ordinal);
         if (i < 0) throw new InvalidOperationException(Loc.T("Не удалось определить версию движка на github.com."));
-        string tag = finalUrl[(i + 5)..].Trim('/');
-        if (tag.Length == 0) throw new InvalidOperationException(Loc.T("Пустой тег релиза на github.com."));
+        RequireSupportedTag(finalUrl[(i + 5)..].Trim('/'));
 
         // 2. The assets — the expanded_assets partial lists every download link.
         string html = await _http.GetStringAsync(
@@ -256,8 +259,7 @@ public sealed class UpdaterService
             string path = m.Groups[1].Value;
             string url = "https://github.com" + path;
             string name = path[(path.LastIndexOf('/') + 1)..];
-            if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
-                !name.Contains("openwrt", StringComparison.OrdinalIgnoreCase))
+            if (name.Equals($"zapret2-{tag}.zip", StringComparison.OrdinalIgnoreCase))
                 zipUrl = url;
             else if (name.Equals("sha256sum.txt", StringComparison.OrdinalIgnoreCase))
                 shaUrl = url;
@@ -273,12 +275,19 @@ public sealed class UpdaterService
     public bool IsUpdateAvailable(ReleaseInfo latest) =>
         !string.Equals(InstalledVersion, latest.Tag, StringComparison.OrdinalIgnoreCase);
 
+    internal static void RequireSupportedTag(string tag)
+    {
+        if (!string.Equals(tag, SupportedEngineTag, StringComparison.Ordinal))
+            throw new InvalidOperationException($"Для этой версии GXBRIEL_ZAPRET проверено ядро {SupportedEngineTag}. Для другого ядра сначала обновите программу. Файлы не изменены.");
+    }
+
     /// <summary>Download, verify and install the engine from the given release.</summary>
     public async Task InstallAsync(
         ReleaseInfo release,
         IProgress<UpdateProgress>? progress = null,
         CancellationToken ct = default)
     {
+        RequireSupportedTag(release.Tag);
         AppPaths.EnsureCreated();
 
         string zipPath = Path.Combine(AppPaths.TempDir, $"zapret2-{release.Tag}.zip");
