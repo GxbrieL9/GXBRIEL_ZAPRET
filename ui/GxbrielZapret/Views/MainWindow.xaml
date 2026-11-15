@@ -2176,6 +2176,43 @@
                             <CheckBox Content="Автоматически применять совместимый патч после обновления" IsChecked="{Binding PatcherAutoPatchEnabled}" Margin="0,0,0,10" ToolTip="После завершения обновления и закрытия Antigravity. Процессы не завершаются автоматически; неизвестная структура файла не изменяется."/>
                             <CheckBox Content="Запускать без AG_LS_PROXY" Foreground="{StaticResource FgBrush}" IsChecked="{Binding PatcherDirectConnection}" IsEnabled="{Binding CanRunPatcher}" Margin="0,0,0,10"
                                       ToolTip="Исключает AG_LS_PROXY только при запуске Antigravity из GX. При серверном отказе по местоположению прямое подключение может оставаться недоступным. Эта галочка не включает прокси или VPN."/>
+                            <!-- Блок настройки AG_LS_PROXY -->
+                            <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush2}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,12">
+                                <StackPanel>
+                                    <TextBlock Text="AG_LS_PROXY · Прокси для моделей Gemini (обход блокировки региона Google)" FontWeight="SemiBold" FontSize="12.5" Margin="0,0,0,4"/>
+                                    <TextBlock Text="Для работы моделей AI без ошибки «User location is not supported» укажите адрес рабочего HTTP или SOCKS5 прокси (V2Ray, Clash, NekoBox и др.)." FontSize="11" Foreground="{StaticResource FgMutedBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    
+                                    <ItemsControl ItemsSource="{Binding DetectedLocalProxies}" Visibility="{Binding HasDetectedLocalProxies, Converter={StaticResource BoolToVis}}" Margin="0,0,0,8">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Content="{Binding Name}" Command="{Binding DataContext.ApplyLocalProxyCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Url}"
+                                                        Style="{StaticResource GhostButton}" Height="28" Padding="8,2" Margin="0,0,6,6" ToolTip="{Binding Url, StringFormat='Подставить адрес {0}'}"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Text="{Binding PatcherProxyInput, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanRunPatcher}"
+                                                 ToolTip="http://127.0.0.1:10809 или socks5://127.0.0.1:10808"/>
+                                        <Button Grid.Column="1" Content="Найти запущенные" Command="{Binding ScanLocalProxiesCommand}" Style="{StaticResource GhostButton}" Margin="6,0,0,0" ToolTip="Сканировать локальные порты на наличие запущенных прокси"/>
+                                    </Grid>
+                                    
+                                    <WrapPanel Margin="0,0,0,6">
+                                        <Button Content="Сохранить прокси" Command="{Binding SavePatcherProxyCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,6,4"/>
+                                        <Button Content="Проверить связь с Google AI" Command="{Binding TestPatcherProxyCommand}" Style="{StaticResource GhostButton}" Margin="0,0,6,4"/>
+                                        <Button Content="Удалить прокси" Command="{Binding ClearPatcherProxyCommand}" Style="{StaticResource GhostButton}" Margin="0,0,0,4"/>
+                                    </WrapPanel>
+                                    
+                                    <TextBlock Text="{Binding PatcherProxyStatus}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource FgBrush}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
                             <TextBlock Text="{Binding PatcherUpdateMessage}" TextWrapping="Wrap" Margin="0,0,0,10" FontSize="12" Foreground="{StaticResource WarnBrush}"
                                        Visibility="{Binding HasPatcherUpdateMessage, Converter={StaticResource BoolToVis}}"/>
                             <ProgressBar IsIndeterminate="True" Height="3" Margin="0,0,0,10" Visibility="{Binding IsPatcherBusy, Converter={StaticResource BoolToVis}}"/>

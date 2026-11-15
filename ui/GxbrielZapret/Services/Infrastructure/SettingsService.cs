@@ -61,6 +61,8 @@ public sealed class AppSettings
     public bool AntigravityMonitorEnabled { get; set; } = true;
     public bool AntigravityAutoPatchEnabled { get; set; } = true;
     public bool AntigravityDirectConnection { get; set; }
+    public string AntigravityProxy { get; set; } = "";
+    public bool AntigravityUseProxy { get; set; }
 
     /// <summary>Background watchdog: silently re-pick a strategy if the bypass stops working. Enabled by default for automatic failover.</summary>
     public bool AutoHeal { get; set; } = true;

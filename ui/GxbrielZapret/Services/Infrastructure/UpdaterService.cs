@@ -273,6 +273,7 @@ public sealed class UpdaterService
 
     /// <summary>True if a newer release than the installed one is available.</summary>
     public bool IsUpdateAvailable(ReleaseInfo latest) =>
+        !string.Equals(InstalledVersion, SupportedEngineTag, StringComparison.OrdinalIgnoreCase) &&
         !string.Equals(InstalledVersion, latest.Tag, StringComparison.OrdinalIgnoreCase);
 
     internal static void RequireSupportedTag(string tag)

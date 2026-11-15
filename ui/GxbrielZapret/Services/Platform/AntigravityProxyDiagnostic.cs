@@ -17,14 +17,15 @@ internal static class AntigravityProxyDiagnostic
     internal static string Describe(string? process, string? user, string? machine)
     {
         string? saved = string.IsNullOrWhiteSpace(user) ? machine : user;
-        string? value = string.IsNullOrWhiteSpace(process) ? saved : process;
+        string? value = AntigravityProxy.Resolve(process, user, machine);
         if (string.IsNullOrWhiteSpace(value)) return "AG_LS_PROXY: не задан. Маршрут Antigravity не проверен.";
-        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https") || string.IsNullOrEmpty(uri.Host))
-            return "AG_LS_PROXY: некорректный или неподдерживаемый HTTP-прокси. Значение скрыто.";
+        Uri uri;
+        try { uri = AntigravityProxy.Parse(value); }
+        catch (ArgumentException) { return "AG_LS_PROXY: некорректный или неподдерживаемый HTTP-прокси. Значение скрыто."; }
         // Never print credentials, paths, query strings or the raw environment value.
         string host = uri.HostNameType == UriHostNameType.IPv6 ? "[" + uri.Host.Trim('[', ']') + "]" : uri.IdnHost;
         string mismatch = !string.Equals(process ?? "", saved ?? "", StringComparison.Ordinal)
-            ? " Настройки процесса GX и сохранённые настройки различаются; Antigravity может использовать другое значение после перезапуска." : "";
+            ? " Настройки процесса и сохранённые настройки различаются. При запуске из GX используются сохранённые настройки пользователя/системы, затем окружение GX." : "";
         return $"AG_LS_PROXY: {uri.Scheme}://{host}:{uri.Port}. Доступность прокси и ответ модели не проверены." + mismatch;
     }
 }

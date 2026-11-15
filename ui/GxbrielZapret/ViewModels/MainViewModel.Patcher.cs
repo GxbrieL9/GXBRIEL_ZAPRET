@@ -97,10 +97,12 @@ public sealed partial class MainViewModel
     private IEnumerable<RelayCommand?> PatcherCommands() =>
         [CheckPatcherStatusCommand, PatchAllComponentsCommand, RestoreAllComponentsCommand, PatchComponentCommand,
          RestoreComponentCommand, BrowseAntigravityCommand, LaunchAntigravityCommand, CancelPatcherCommand, ResetAntigravityRootCommand,
-         SelectInstallationCommand, TerminateAntigravityProcessesCommand, RestartAntigravityCommand, ForceCloseAntigravityCommand];
+         SelectInstallationCommand, TerminateAntigravityProcessesCommand, RestartAntigravityCommand, ForceCloseAntigravityCommand,
+         SavePatcherProxyCommand, TestPatcherProxyCommand, ClearPatcherProxyCommand, ScanLocalProxiesCommand];
 
     private void InitializePatcherCommands()
     {
+        InitializePatcherProxyCommands();
         CheckPatcherStatusCommand = new RelayCommand(async _ => await RefreshPatcherStatusAsync(), _ => CanRunPatcher);
         PatchAllComponentsCommand = new RelayCommand(async _ => await PatchComponentAsync("All"), _ => CanRunPatcher && !_patcherSelectionRequired && PatcherComponents.Any(c => c.CanPatch));
         RestoreAllComponentsCommand = new RelayCommand(async _ => await RestoreComponentAsync("All"), _ => CanRunPatcher && !_patcherSelectionRequired && PatcherComponents.Any(c => c.CanRestore));

@@ -100,9 +100,14 @@ public sealed partial class MainViewModel
                 }
             }
             _patcherCts.Token.ThrowIfCancellationRequested();
-            if (!closeOnly) await Task.Run(() => Process.Start(AntigravityLauncher.BuildStartInfo(executable, Settings.AntigravityDirectConnection)));
+            string? proxyToUse = Settings.AntigravityUseProxy && !string.IsNullOrWhiteSpace(Settings.AntigravityProxy)
+                ? Settings.AntigravityProxy
+                : null;
+            if (!closeOnly) await Task.Run(() => Process.Start(AntigravityLauncher.BuildStartInfo(executable, Settings.AntigravityDirectConnection, proxyToUse)));
             PatcherStatusMessage = closeOnly ? "Процессы выбранной установки закрыты." : "Команда запуска Antigravity отправлена. Ответ модели не проверен.";
-            if (!closeOnly && Settings.AntigravityDirectConnection) PatcherStatusMessage += " Режим без AG_LS_PROXY применён к новому процессу.";
+            if (!closeOnly && proxyToUse is not null && !Settings.AntigravityDirectConnection) PatcherStatusMessage += " Настроенный прокси передан в AG_LS_PROXY. Адрес и учётные данные скрыты.";
+            else if (!closeOnly && Settings.AntigravityDirectConnection) PatcherStatusMessage += " Режим без AG_LS_PROXY применён к новому процессу.";
+            else if (!closeOnly) PatcherStatusMessage += " " + AntigravityProxyDiagnostic.Read() + " Если Antigravity уже был открыт, используйте перезапуск для применения окружения.";
             AppendPatcherLog(PatcherStatusMessage);
         }
         catch (OperationCanceledException) { PatcherStatusMessage = "Операция остановлена. Принудительное завершение процессов не выполнялось."; }

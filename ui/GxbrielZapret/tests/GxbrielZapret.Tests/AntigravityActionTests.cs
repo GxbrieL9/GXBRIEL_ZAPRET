@@ -168,7 +168,7 @@ public sealed class AntigravityActionTests : IDisposable
     public void ProxyDiagnosticSeparatesSavedAndInheritedSettingsAndRedactsSecrets()
     {
         string diagnostic = AntigravityProxyDiagnostic.Describe("http://alice:secret@127.0.0.1:53129/private?token=abc", "http://localhost:8080", null);
-        Assert.Contains("127.0.0.1:53129", diagnostic);
+        Assert.Contains("localhost:8080", diagnostic);
         Assert.Contains("различаются", diagnostic);
         Assert.DoesNotContain("alice", diagnostic);
         Assert.DoesNotContain("secret", diagnostic);
@@ -272,5 +272,35 @@ public sealed class AntigravityActionTests : IDisposable
         var found = AntigravityDiscovery.Find(manualRoot: ideRoot, searchRoots: new[] { strayAgyDir }, sharedCliRoot: geminiDir);
         Assert.True(found.ContainsKey("Agy"));
         Assert.Equal(Path.GetFullPath(targetCli), found["Agy"]);
+    }
+
+    [Fact]
+    public void LauncherInjectsCustomProxyWhenConfigured()
+    {
+        string exe = Write("custom-proxy-env/Antigravity.exe");
+        var info = AntigravityLauncher.BuildStartInfo(exe, directConnection: false, customProxy: "http://127.0.0.1:10809");
+        Assert.Equal("http://127.0.0.1:10809", info.Environment["AG_LS_PROXY"]);
+        Assert.Equal("http://127.0.0.1:10809", info.Environment["HTTPS_PROXY"]);
+        Assert.Equal("http://127.0.0.1:10809", info.Environment["HTTP_PROXY"]);
+        Assert.Equal("http://127.0.0.1:10809", info.Environment["ALL_PROXY"]);
+    }
+
+    [Theory]
+    [InlineData("http://127.0.0.1:7890")]
+    [InlineData("socks5://127.0.0.1:10808")]
+    [InlineData("https://proxy.example.com:8443")]
+    public void AntigravityProxyParseSupportsSocks5AndHttp(string proxy)
+    {
+        var uri = AntigravityProxy.Parse(proxy);
+        Assert.NotNull(uri);
+        Assert.Equal(proxy, uri.OriginalString);
+    }
+
+    [Fact]
+    public async Task ProxyTesterRejectsInvalidProtocols()
+    {
+        var (ok, msg) = await AntigravityProxyManager.TestProxyAsync("ftp://127.0.0.1:21");
+        Assert.False(ok);
+        Assert.Contains("Некорректный протокол", msg);
     }
 }

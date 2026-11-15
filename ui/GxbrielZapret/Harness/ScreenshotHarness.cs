@@ -64,7 +64,7 @@ internal static class ScreenshotHarness
                 {
                     window.Width = size.Item1;
                     window.Height = size.Item2;
-                    foreach (int tab in new[] { 0, 1, 2, 3, 4, MainViewModel.SettingsTabIndex })
+                    foreach (int tab in new[] { 0, 1, 2, 3, 4, MainViewModel.PatcherTabIndex, MainViewModel.SettingsTabIndex })
                     {
                         vm.SelectedTabIndex = tab;
                         await SettleAndSnap(window, Path.Combine(outDir, $"review-{tab}-{size.Item1}x{size.Item2}.png"));

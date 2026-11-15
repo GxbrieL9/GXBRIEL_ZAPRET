@@ -5,7 +5,7 @@ namespace GxbrielZapret.Services.Platform;
 
 internal static class AntigravityLauncher
 {
-    internal static ProcessStartInfo BuildStartInfo(string executable, bool directConnection)
+    internal static ProcessStartInfo BuildStartInfo(string executable, bool directConnection, string? customProxy = null)
     {
         string path = Path.GetFullPath(executable);
         if (!File.Exists(path)) throw new FileNotFoundException("Antigravity не найден.", path);
@@ -19,7 +19,27 @@ internal static class AntigravityLauncher
             Arguments = "/d /v:off /s /c \"\"%GX_ANTIGRAVITY_EXECUTABLE%\" 1>NUL 2>NUL\""
         };
         info.Environment["GX_ANTIGRAVITY_EXECUTABLE"] = path;
-        if (directConnection) info.Environment.Remove("AG_LS_PROXY");
+        if (!directConnection && !string.IsNullOrWhiteSpace(customProxy))
+        {
+            string proxy = customProxy.Trim();
+            AntigravityProxy.Parse(proxy);
+            info.Environment["AG_LS_PROXY"] = proxy;
+            info.Environment["HTTPS_PROXY"] = proxy;
+            info.Environment["HTTP_PROXY"] = proxy;
+            info.Environment["ALL_PROXY"] = proxy;
+        }
+        else if (directConnection)
+        {
+            info.Environment.Remove("AG_LS_PROXY");
+            info.Environment.Remove("HTTPS_PROXY");
+            info.Environment.Remove("HTTP_PROXY");
+            info.Environment.Remove("ALL_PROXY");
+        }
+        else if (AntigravityProxy.Read() is { } proxy)
+        {
+            AntigravityProxy.Parse(proxy);
+            info.Environment["AG_LS_PROXY"] = proxy;
+        }
         if (info.Environment.TryGetValue("GODEBUG", out string? goDebug) && goDebug is not null)
         {
             string cleaned = string.Join(',', goDebug.Split(',').Where(part =>
