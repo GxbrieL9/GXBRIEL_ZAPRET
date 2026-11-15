@@ -765,6 +765,8 @@ public sealed partial class MainViewModel
         try { _patcherCts?.Cancel(); } catch { }
         _patcherMonitorTimer?.Stop();
         _patcherMonitorCts?.Cancel();
+        _antigravityRelayTimer?.Stop();
+        try { _antigravityRelay.Dispose(); } catch { }
         try { _dpiCts?.Cancel(); } catch { }
         try { _autoCts?.Cancel(); } catch { }
         try { _monitor.Stop(); } catch { }

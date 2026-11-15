@@ -20,6 +20,16 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (CommandLine.Value(e.Args, "--antigravity-route-report") is { } routeReport)
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            Dispatcher.BeginInvoke(async () =>
+            {
+                try { await AntigravityRoutingHarness.RunAsync(routeReport, CommandLine.Has(e.Args, "--antigravity-route-next")); }
+                catch { Shutdown(1); }
+            });
+            return;
+        }
         if (CommandLine.Value(e.Args, "--apply-app-update") is { } updateRequest)
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;

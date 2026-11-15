@@ -98,11 +98,13 @@ public sealed partial class MainViewModel
         [CheckPatcherStatusCommand, PatchAllComponentsCommand, RestoreAllComponentsCommand, PatchComponentCommand,
          RestoreComponentCommand, BrowseAntigravityCommand, LaunchAntigravityCommand, CancelPatcherCommand, ResetAntigravityRootCommand,
          SelectInstallationCommand, TerminateAntigravityProcessesCommand, RestartAntigravityCommand, ForceCloseAntigravityCommand,
-         SavePatcherProxyCommand, TestPatcherProxyCommand, ClearPatcherProxyCommand, ScanLocalProxiesCommand];
+         SavePatcherProxyCommand, TestPatcherProxyCommand, ClearPatcherProxyCommand, ScanLocalProxiesCommand,
+         ToggleBuiltinAntigravityCommand, CheckBuiltinAntigravityCommand, NextBuiltinAntigravityRouteCommand];
 
     private void InitializePatcherCommands()
     {
         InitializePatcherProxyCommands();
+        InitializeBuiltinAntigravityCommands();
         CheckPatcherStatusCommand = new RelayCommand(async _ => await RefreshPatcherStatusAsync(), _ => CanRunPatcher);
         PatchAllComponentsCommand = new RelayCommand(async _ => await PatchComponentAsync("All"), _ => CanRunPatcher && !_patcherSelectionRequired && PatcherComponents.Any(c => c.CanPatch));
         RestoreAllComponentsCommand = new RelayCommand(async _ => await RestoreComponentAsync("All"), _ => CanRunPatcher && !_patcherSelectionRequired && PatcherComponents.Any(c => c.CanRestore));

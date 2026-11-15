@@ -114,6 +114,7 @@ public sealed partial class MainViewModel
     private void RefreshPatcherCommandStates()
     {
         OnPropertyChanged(nameof(CanRunPatcher));
+        OnPropertyChanged(nameof(CanEditPatcherProxy));
         OnPropertyChanged(nameof(PatcherLaunchReason));
         OnPropertyChanged(nameof(PatcherPatchAllReason));
         OnPropertyChanged(nameof(PatcherRestoreAllReason));

@@ -103,7 +103,10 @@ public sealed partial class MainViewModel
             string? proxyToUse = Settings.AntigravityUseProxy && !string.IsNullOrWhiteSpace(Settings.AntigravityProxy)
                 ? Settings.AntigravityProxy
                 : null;
-            if (!closeOnly) await Task.Run(() => Process.Start(AntigravityLauncher.BuildStartInfo(executable, Settings.AntigravityDirectConnection, proxyToUse)));
+            if (!closeOnly && Settings.AntigravityBuiltinRouting && !Settings.AntigravityDirectConnection)
+                proxyToUse = _antigravityRelay.Start();
+            if (!closeOnly) await Task.Run(() => Process.Start(AntigravityLauncher.BuildStartInfo(executable,
+                Settings.AntigravityDirectConnection, proxyToUse, selectiveHttps: Settings.AntigravityBuiltinRouting)));
             PatcherStatusMessage = closeOnly ? "Процессы выбранной установки закрыты." : "Команда запуска Antigravity отправлена. Ответ модели не проверен.";
             if (!closeOnly && proxyToUse is not null && !Settings.AntigravityDirectConnection) PatcherStatusMessage += " Настроенный прокси передан в AG_LS_PROXY. Адрес и учётные данные скрыты.";
             else if (!closeOnly && Settings.AntigravityDirectConnection) PatcherStatusMessage += " Режим без AG_LS_PROXY применён к новому процессу.";

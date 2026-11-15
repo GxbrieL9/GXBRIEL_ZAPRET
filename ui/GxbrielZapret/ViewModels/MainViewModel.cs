@@ -474,6 +474,7 @@ public sealed partial class MainViewModel : ObservableObject
         // Before anything else touches the network: a system proxy left applied by a crash points at a
         // socket that no longer exists, which reads to the user as «интернет пропал».
         RestoreStaleSystemProxy();
+        RestoreBuiltinAntigravityRouting();
         _engine.DebugLog = Settings.DebugLog;
 
         // Prefer the user's persisted explicit choice. Per-network memory is only a fallback when that

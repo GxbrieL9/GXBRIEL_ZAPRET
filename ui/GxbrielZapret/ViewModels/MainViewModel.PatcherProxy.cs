@@ -42,7 +42,7 @@ public sealed partial class MainViewModel
             }
             catch (ArgumentException ex) { PatcherProxyStatus = ex.Message; }
             catch { PatcherProxyStatus = "Не удалось сохранить AG_LS_PROXY в окружении пользователя Windows."; }
-        }, _ => CanRunPatcher);
+        }, _ => CanEditPatcherProxy);
 
         ClearPatcherProxyCommand = new RelayCommand(_ =>
         {
@@ -57,7 +57,7 @@ public sealed partial class MainViewModel
                 PatcherProxyStatus = AntigravityProxyDiagnostic.Read() + " Пользовательское значение удалено; системные настройки и VPN могут оставаться активными.";
             }
             catch { PatcherProxyStatus = "Не удалось удалить AG_LS_PROXY из системы."; }
-        }, _ => CanRunPatcher);
+        }, _ => CanEditPatcherProxy);
 
         ScanLocalProxiesCommand = new RelayCommand(async _ =>
         {
@@ -69,7 +69,7 @@ public sealed partial class MainViewModel
             PatcherProxyStatus = detected.Count > 0
                 ? $"Найдено запущенных прокси: {detected.Count}. Нажмите на нужный для подстановки."
                 : "Запущенных локальных прокси на стандартных портах не обнаружено.";
-        }, _ => CanRunPatcher);
+        }, _ => CanEditPatcherProxy);
 
         ApplyLocalProxyCommand = new RelayCommand(p =>
         {
@@ -97,7 +97,7 @@ public sealed partial class MainViewModel
             catch (OperationCanceledException) { PatcherProxyStatus = "Проверка прокси отменена."; }
             catch { PatcherProxyStatus = "Проверка прокси не завершена. Настройки не изменены."; }
             finally { _patcherCts.Dispose(); _patcherCts = null; IsPatcherBusy = false; }
-        }, _ => CanRunPatcher);
+        }, _ => CanEditPatcherProxy);
 
         // Auto-scan on startup in background
         _ = Task.Run(() =>

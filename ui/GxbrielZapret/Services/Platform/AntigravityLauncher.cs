@@ -5,7 +5,7 @@ namespace GxbrielZapret.Services.Platform;
 
 internal static class AntigravityLauncher
 {
-    internal static ProcessStartInfo BuildStartInfo(string executable, bool directConnection, string? customProxy = null)
+    internal static ProcessStartInfo BuildStartInfo(string executable, bool directConnection, string? customProxy = null, bool selectiveHttps = false)
     {
         string path = Path.GetFullPath(executable);
         if (!File.Exists(path)) throw new FileNotFoundException("Antigravity не найден.", path);
@@ -25,8 +25,11 @@ internal static class AntigravityLauncher
             AntigravityProxy.Parse(proxy);
             info.Environment["AG_LS_PROXY"] = proxy;
             info.Environment["HTTPS_PROXY"] = proxy;
-            info.Environment["HTTP_PROXY"] = proxy;
-            info.Environment["ALL_PROXY"] = proxy;
+            if (!selectiveHttps)
+            {
+                info.Environment["HTTP_PROXY"] = proxy;
+                info.Environment["ALL_PROXY"] = proxy;
+            }
         }
         else if (directConnection)
         {
@@ -39,6 +42,16 @@ internal static class AntigravityLauncher
         {
             AntigravityProxy.Parse(proxy);
             info.Environment["AG_LS_PROXY"] = proxy;
+            info.Environment["HTTPS_PROXY"] = proxy;
+            info.Environment["HTTP_PROXY"] = proxy;
+            info.Environment["ALL_PROXY"] = proxy;
+        }
+        // Stock Go builds read HTTPS_PROXY; an alternative patched build may read AG_LS_PROXY.
+        // Keep both in the child only, and prevent an inherited NO_PROXY=* from bypassing this choice.
+        if (!directConnection && info.Environment.ContainsKey("AG_LS_PROXY"))
+        {
+            info.Environment.Remove("NO_PROXY");
+            info.Environment.Remove("no_proxy");
         }
         if (info.Environment.TryGetValue("GODEBUG", out string? goDebug) && goDebug is not null)
         {
