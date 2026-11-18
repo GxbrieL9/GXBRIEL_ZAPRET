@@ -47,7 +47,8 @@ public sealed class RiotDiagnosticsTests
     {
         var service = new RiotDiagnosticsService(
             tlsProbe: (host, proto, ct) => Task.FromResult(DiagStatus.Ok),
-            reachProbe: (host, ct) => Task.FromResult(DiagStatus.Ok));
+            reachProbe: (host, ct) => Task.FromResult(DiagStatus.Ok),
+            chatProbe: (host, port, ct) => Task.FromResult(new RiotChatProbeResult(host, port, true, 42, "TCP OK")));
 
         var report = await service.CheckAsync(CancellationToken.None);
 
@@ -55,6 +56,25 @@ public sealed class RiotDiagnosticsTests
         Assert.Equal(3, report.PassedCount);
         Assert.Equal(3, report.TotalCount);
         Assert.All(report.Endpoints, ep => Assert.True(ep.Passes));
+        Assert.NotNull(report.Chat);
+        Assert.True(report.Chat!.IsReachable);
+    }
+
+    [Fact]
+    public async Task CheckAsync_WhenChat5223Fails_WarnsAboutSmartDnsAndChat()
+    {
+        var service = new RiotDiagnosticsService(
+            tlsProbe: (host, proto, ct) => Task.FromResult(DiagStatus.Ok),
+            reachProbe: (host, ct) => Task.FromResult(DiagStatus.Ok),
+            chatProbe: (host, port, ct) => Task.FromResult(new RiotChatProbeResult(host, port, false, 4000, "TCP timeout")));
+
+        var report = await service.CheckAsync(CancellationToken.None);
+
+        Assert.True(report.AllReachable);
+        Assert.NotNull(report.Chat);
+        Assert.False(report.Chat!.IsReachable);
+        Assert.Contains("5223", report.Summary);
+        Assert.Contains("chat.si.riotgames.com", report.Summary);
     }
 
     [Fact]
@@ -64,7 +84,8 @@ public sealed class RiotDiagnosticsTests
             tlsProbe: (host, proto, ct) =>
                 Task.FromResult(host == "auth.riotgames.com" ? DiagStatus.Fail : DiagStatus.Ok),
             reachProbe: (host, ct) =>
-                Task.FromResult(host == "auth.riotgames.com" ? DiagStatus.Fail : DiagStatus.Ok));
+                Task.FromResult(host == "auth.riotgames.com" ? DiagStatus.Fail : DiagStatus.Ok),
+            chatProbe: (host, port, ct) => Task.FromResult(new RiotChatProbeResult(host, port, true, 40, "TCP OK")));
 
         var report = await service.CheckAsync(CancellationToken.None);
 

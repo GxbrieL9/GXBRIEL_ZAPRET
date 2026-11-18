@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Net.Sockets;
 using System.Security.Authentication;
 using GxbrielZapret.Localization;
 using GxbrielZapret.Models;
@@ -15,12 +17,20 @@ public sealed record RiotEndpointProbeResult(
     public bool Passes => IsReachable;
 }
 
+public sealed record RiotChatProbeResult(
+    string Host,
+    int Port,
+    bool IsReachable,
+    long LatencyMs,
+    string Detail);
+
 public sealed record RiotDiagnosticsReport(
     bool AllReachable,
     int PassedCount,
     int TotalCount,
     IReadOnlyList<RiotEndpointProbeResult> Endpoints,
-    string Summary);
+    string Summary,
+    RiotChatProbeResult? Chat = null);
 
 /// <summary>
 /// Standalone opt-in diagnostics for Riot Games / League of Legends endpoints.
@@ -30,6 +40,8 @@ public sealed record RiotDiagnosticsReport(
 public sealed class RiotDiagnosticsService
 {
     public const string GroupName = "Riot Games";
+    public const string ChatHost = "euw1.chat.si.riotgames.com";
+    public const int ChatPort = 5223;
 
     public static readonly (string Name, string Host)[] Endpoints = new[]
     {
@@ -41,17 +53,56 @@ public sealed class RiotDiagnosticsService
     private readonly Func<string, SslProtocols, CancellationToken, Task<DiagStatus>> _tlsProbe;
     private readonly Func<string, CancellationToken, Task<DiagStatus>> _reachProbe;
     private readonly Func<string, CancellationToken, Task<(bool ok, long ms)>> _pingProbe;
+    private readonly Func<string, int, CancellationToken, Task<RiotChatProbeResult>> _chatProbe;
 
-    public RiotDiagnosticsService() : this(NetProbe.TlsAsync, NetProbe.ReachAsync, NetProbe.PingAsync) { }
+    public RiotDiagnosticsService() : this(NetProbe.TlsAsync, NetProbe.ReachAsync, NetProbe.PingAsync, ProbeTcpChatAsync) { }
 
     public RiotDiagnosticsService(
         Func<string, SslProtocols, CancellationToken, Task<DiagStatus>> tlsProbe,
         Func<string, CancellationToken, Task<DiagStatus>> reachProbe,
-        Func<string, CancellationToken, Task<(bool ok, long ms)>>? pingProbe = null)
+        Func<string, CancellationToken, Task<(bool ok, long ms)>>? pingProbe = null,
+        Func<string, int, CancellationToken, Task<RiotChatProbeResult>>? chatProbe = null)
     {
         _tlsProbe = tlsProbe ?? throw new ArgumentNullException(nameof(tlsProbe));
         _reachProbe = reachProbe ?? throw new ArgumentNullException(nameof(reachProbe));
         _pingProbe = pingProbe ?? NetProbe.PingAsync;
+        _chatProbe = chatProbe ?? ProbeTcpChatAsync;
+    }
+
+    public static async Task<RiotChatProbeResult> ProbeTcpChatAsync(string host, int port, CancellationToken ct)
+    {
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            using var tcp = new TcpClient();
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(4));
+            await tcp.ConnectAsync(host, port, timeoutCts.Token).ConfigureAwait(false);
+            sw.Stop();
+            return new RiotChatProbeResult(host, port, true, sw.ElapsedMilliseconds, "TCP OK");
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            sw.Stop();
+            return new RiotChatProbeResult(host, port, false, sw.ElapsedMilliseconds, "TCP timeout");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            sw.Stop();
+            return new RiotChatProbeResult(host, port, false, sw.ElapsedMilliseconds, ex.Message);
+        }
+    }
+
+    public static bool IsRiotClientRunning()
+    {
+        try { return System.Diagnostics.Process.GetProcessesByName("RiotClientUx").Length > 0 || System.Diagnostics.Process.GetProcessesByName("RiotClientServices").Length > 0; }
+        catch { return false; }
+    }
+
+    public static bool IsLeagueClientRunning()
+    {
+        try { return System.Diagnostics.Process.GetProcessesByName("LeagueClientUx").Length > 0 || System.Diagnostics.Process.GetProcessesByName("LeagueClient").Length > 0; }
+        catch { return false; }
     }
 
     public static List<DiagRow> BuildRiotRows() =>
@@ -59,28 +110,58 @@ public sealed class RiotDiagnosticsService
 
     public async Task<RiotDiagnosticsReport> CheckAsync(CancellationToken ct = default)
     {
-        var results = new List<RiotEndpointProbeResult>();
-        int passed = 0;
+        using var budgetCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        budgetCts.CancelAfter(TimeSpan.FromSeconds(10));
+        var token = budgetCts.Token;
 
-        foreach (var (name, host) in Endpoints)
+        using var sem = new SemaphoreSlim(3);
+        var tasks = Endpoints.Select(async ep =>
         {
-            ct.ThrowIfCancellationRequested();
-            var tls12 = await _tlsProbe(host, SslProtocols.Tls12, ct).ConfigureAwait(false);
-            var tls13 = await _tlsProbe(host, SslProtocols.Tls13, ct).ConfigureAwait(false);
-            var http = await _reachProbe(host, ct).ConfigureAwait(false);
+            await sem.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                var (name, host) = ep;
+                var t12Task = _tlsProbe(host, SslProtocols.Tls12, token);
+                var t13Task = _tlsProbe(host, SslProtocols.Tls13, token);
+                var httpTask = _reachProbe(host, token);
+                await Task.WhenAll(t12Task, t13Task, httpTask).ConfigureAwait(false);
 
-            bool reachable = (tls12 == DiagStatus.Ok || tls13 == DiagStatus.Ok) && http == DiagStatus.Ok;
-            if (reachable) passed++;
+                var tls12 = await t12Task;
+                var tls13 = await t13Task;
+                var http = await httpTask;
+                bool reachable = (tls12 == DiagStatus.Ok || tls13 == DiagStatus.Ok) && http == DiagStatus.Ok;
+                return new RiotEndpointProbeResult(name, host, tls12, tls13, http, reachable);
+            }
+            finally
+            {
+                sem.Release();
+            }
+        });
 
-            results.Add(new RiotEndpointProbeResult(name, host, tls12, tls13, http, reachable));
+        var chatTask = _chatProbe(ChatHost, ChatPort, token);
+
+        RiotEndpointProbeResult[] results;
+        RiotChatProbeResult chatResult;
+        try
+        {
+            results = await Task.WhenAll(tasks).ConfigureAwait(false);
+            chatResult = await chatTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            results = Endpoints.Select(ep => new RiotEndpointProbeResult(ep.Name, ep.Host, DiagStatus.Timeout, DiagStatus.Timeout, DiagStatus.Timeout, false)).ToArray();
+            chatResult = new RiotChatProbeResult(ChatHost, ChatPort, false, 0, "timeout");
         }
 
+        int passed = results.Count(r => r.IsReachable);
         bool allReachable = passed == Endpoints.Length;
         string summary = allReachable
-            ? Loc.T("Все эндпоинты Riot (clientconfig, auth, entitlements) доступны.")
-            : Loc.T("Доступно {0} из {1} эндпоинтов Riot.", passed, Endpoints.Length);
+            ? (chatResult.IsReachable
+                ? Loc.T("HTTPS Riot (clientconfig, auth, entitlements) и чат XMPP (5223) доступны. Вход в матч проверяется вручную.")
+                : Loc.T("HTTPS Riot доступны, но чат/друзья (TCP 5223) недоступны ({0}) — проверьте Smart-DNS/VPN (исключите chat.si.riotgames.com).", chatResult.Detail))
+            : Loc.T("Доступно {0} из {1} HTTPS эндпоинтов Riot.", passed, Endpoints.Length);
 
-        return new RiotDiagnosticsReport(allReachable, passed, Endpoints.Length, results, summary);
+        return new RiotDiagnosticsReport(allReachable, passed, Endpoints.Length, results, summary, chatResult);
     }
 
     public async Task ProbeRowAsync(DiagRow row, CancellationToken ct = default)
