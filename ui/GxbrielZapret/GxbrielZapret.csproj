@@ -13,7 +13,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
-    <Version>4.0.7</Version>
+    <Version>4.0.8</Version>
     <Product>GXBRIEL_ZAPRET</Product>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- Self-contained single-file publish so the user needs nothing installed -->
@@ -71,6 +71,7 @@
          assembly can't see it. These pin it into the main assembly under a fixed name. -->
     <EmbeddedResource Include="Localization\strings.en.json" WithCulture="false" LogicalName="GxbrielZapret.Localization.strings.en.json" />
     <EmbeddedResource Include="Assets\release-public-key.pem" LogicalName="GXBRIEL_ZAPRET.release-public-key.pem" />
+    <EmbeddedResource Include="Assets\google-ip-ranges.json" LogicalName="GXBRIEL_ZAPRET.google-ip-ranges.json" />
     <EmbeddedResource Include="Assets\third-party-notices.zip" LogicalName="GXBRIEL_ZAPRET.third-party-notices.zip" />
     <!-- Pinned official engine manifest for supply-chain validation -->
     <EmbeddedResource Include="engine\engine-manifest.json" LogicalName="GXBRIEL_ZAPRET.engine.engine-manifest.json" />

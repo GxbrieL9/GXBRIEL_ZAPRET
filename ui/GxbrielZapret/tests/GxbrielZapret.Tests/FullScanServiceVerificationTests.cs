@@ -21,7 +21,7 @@ public sealed class FullScanServiceVerificationTests : IDisposable
             new(gateway, "gateway evidence"));
 
     [Fact]
-    public async Task DiscordTransportFailureSkipsExpensiveApplicationFlow()
+    public async Task DiscordTransportFailureTriggersFailFastAndSkipsFlowMeasures()
     {
         int samples = 0;
         using var service = new Canonical5ProbeService(new FakeRunner(),
@@ -32,6 +32,7 @@ public sealed class FullScanServiceVerificationTests : IDisposable
         Assert.Equal(0, samples);
         Assert.Null(result.Flows);
         Assert.False(result.IsWork);
+        Assert.Contains("первичный отсев", result.Summary);
     }
 
     [Theory]
@@ -214,7 +215,7 @@ public sealed class FullScanServiceVerificationTests : IDisposable
     }
 
     [Fact]
-    public async Task InitialFailureFailsFastWithoutHeavyFlowProbe()
+    public async Task InitialFailureFailsFastOnFirstAttemptWithoutStage2RepeatsOrFlows()
     {
         int calls = 0, flowCalls = 0;
         var runner = new FakeRunner();
@@ -231,17 +232,64 @@ public sealed class FullScanServiceVerificationTests : IDisposable
     }
 
     [Fact]
-    public async Task Stage2RepeatFailureSkipsHeavyFlowProbe()
+    public async Task PassingStage1ExecutesStage2RepeatsAndFlowConfirmation()
     {
-        int calls = 0, flowCalls = 0;
-        using var service = new Canonical5ProbeService(new FakeRunner(),
-            (_, _) => Task.FromResult(++calls != 2),
-            (_, _) => { flowCalls++; return Task.FromResult(Flows()); });
+        var targetCalls = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        int flowCalls = 0;
+        var runner = new FakeRunner();
+        using var service = new Canonical5ProbeService(runner,
+            (host, _) =>
+            {
+                lock (targetCalls)
+                {
+                    targetCalls[host] = targetCalls.TryGetValue(host, out int c) ? c + 1 : 1;
+                }
+                return Task.FromResult(true);
+            },
+            (_, _) =>
+            {
+                Interlocked.Increment(ref flowCalls);
+                return Task.FromResult(Flows());
+            });
+
+        var targets = new[] { "www.youtube.com", "discord.com" };
         var result = await service.EvaluateCandidateAsync(ReferenceStrategyCatalog.All[0].ToPreset(), null,
-            CancellationToken.None, targets: new[] { "www.youtube.com" });
-        Assert.Equal(3, calls);
-        Assert.Equal(0, flowCalls);
+            CancellationToken.None, targets: targets, applicationScope: AutoScope.Both);
+
+        Assert.True(result.IsWork);
+        Assert.Equal(3, targetCalls["www.youtube.com"]);
+        Assert.Equal(3, targetCalls["discord.com"]);
+        Assert.Equal(3, flowCalls);
+        Assert.NotNull(result.Flows);
+    }
+
+    [Fact]
+    public async Task Stage2RepeatFailureRejectsCandidateFromWork()
+    {
+        int call = 0;
+        int flowCalls = 0;
+        var runner = new FakeRunner();
+        using var service = new Canonical5ProbeService(runner,
+            (_, _) =>
+            {
+                int current = Interlocked.Increment(ref call);
+                // Call 1 (stage 1) passes, Call 2 (stage 2 repeat) fails
+                return Task.FromResult(current != 2);
+            },
+            (_, _) =>
+            {
+                Interlocked.Increment(ref flowCalls);
+                return Task.FromResult(Flows());
+            });
+
+        var targets = new[] { "www.youtube.com" };
+        var result = await service.EvaluateCandidateAsync(ReferenceStrategyCatalog.All[0].ToPreset(), null,
+            CancellationToken.None, targets: targets, applicationScope: AutoScope.YouTube);
+
         Assert.False(result.IsWork);
+        Assert.False(result.Probes["www.youtube.com"]);
+        Assert.Equal(0, flowCalls);
+        Assert.Null(result.Flows);
     }
 
     [Fact]

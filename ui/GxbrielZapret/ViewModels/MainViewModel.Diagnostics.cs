@@ -31,8 +31,11 @@ public sealed partial class MainViewModel
 
     public bool IsAnyCheckRunning => IsDiagnosing || IsDpiChecking || IsRiotDiagnosing;
 
+    // ---- Riot standalone opt-in diagnostics ------------------------------
+
     private readonly RiotDiagnosticsService _riotDiagnostics = new();
     private CancellationTokenSource? _riotDiagCts;
+
     private bool _isRiotDiagnosing;
     public bool IsRiotDiagnosing
     {
@@ -46,45 +49,65 @@ public sealed partial class MainViewModel
             }
         }
     }
-    private string _riotDiagStatusText = "Проверка запуска и авторизации не выполнялась.";
-    public string RiotDiagStatusText { get => _riotDiagStatusText; private set => SetField(ref _riotDiagStatusText, value); }
 
-    private async Task RunRiotDiagnosticsAsync()
+    private DiagStatus _riotDiagStatus = DiagStatus.None;
+    public DiagStatus RiotDiagStatus
     {
-        if (IsRiotDiagnosing) return;
-        IsRiotDiagnosing = true;
-        _riotDiagCts = new CancellationTokenSource();
-        var rows = DiagRows.Where(r => r.Group == RiotDiagnosticsService.GroupName).ToList();
-        if (rows.Count == 0)
+        get => _riotDiagStatus;
+        private set
         {
-            foreach (var row in RiotDiagnosticsService.BuildRiotRows()) { DiagRows.Add(row); rows.Add(row); }
+            if (SetField(ref _riotDiagStatus, value))
+            {
+                OnPropertyChanged(nameof(HasRiotDiagStatus));
+                OnPropertyChanged(nameof(LeagueReachabilityStatus));
+                OnPropertyChanged(nameof(LeagueReachabilityText));
+            }
         }
-        foreach (var row in rows) row.Reset();
+    }
+
+    public bool HasRiotDiagStatus => RiotDiagStatus != DiagStatus.None;
+
+    public DiagStatus LeagueReachabilityStatus => RiotDiagStatus;
+
+    public string LeagueReachabilityText => RiotDiagStatus switch
+    {
+        DiagStatus.Ok => "OK",
+        DiagStatus.Fail => Loc.T("Ошибка"),
+        DiagStatus.Timeout => Loc.T("Таймаут"),
+        DiagStatus.Running => Loc.T("Проверка…"),
+        DiagStatus.Canceled => Loc.T("Отменено"),
+        _ => Loc.T("Не проверено")
+    };
+
+    private bool _isQuickChecking;
+    public bool IsQuickChecking
+    {
+        get => _isQuickChecking;
+        private set { if (SetField(ref _isQuickChecking, value)) RaiseCommandStates(); }
+    }
+
+    public async Task QuickCheckServicesAsync()
+    {
+        if (IsQuickChecking || IsAnyCheckRunning || IsAutoRunning) return;
+        IsQuickChecking = true;
         try
         {
-            var result = await _riotDiagnostics.CheckAsync(_riotDiagCts.Token).ConfigureAwait(true);
-            foreach (var item in result.Endpoints)
-            {
-                var row = rows.First(r => r.Host == item.Host);
-                row.Tls12 = item.Tls12; row.Tls13 = item.Tls13; row.Http = item.Http;
-            }
-            RiotDiagStatusText = result.AllReachable
-                ? "HTTPS для лаунчера и авторизации Riot доступен. Подключение к игровому матчу не проверялось."
-                : $"HTTPS-доступ Riot: {result.PassedCount}/{result.TotalCount}. Игровой матч не проверялся.";
-        }
-        catch (OperationCanceledException)
-        {
-            foreach (var row in rows) row.CancelPending();
-            RiotDiagStatusText = "Проверка Riot остановлена.";
-        }
-        catch (Exception ex)
-        {
-            RiotDiagStatusText = "Ошибка проверки Riot: " + ex.Message;
+            var healthTask = _healthMonitor.ProbeAllAsync(CancellationToken.None);
+            var riotTask = RunRiotDiagnosticsAsync();
+            await Task.WhenAll(healthTask, riotTask).ConfigureAwait(true);
+            RefreshHomeServiceReachability();
         }
         finally
         {
-            _riotDiagCts.Dispose(); _riotDiagCts = null; IsRiotDiagnosing = false;
+            IsQuickChecking = false;
         }
+    }
+
+    private string _riotDiagStatusText = "";
+    public string RiotDiagStatusText
+    {
+        get => _riotDiagStatusText;
+        private set => SetField(ref _riotDiagStatusText, value);
     }
 
     private double _diagProgress;
@@ -296,6 +319,82 @@ public sealed partial class MainViewModel
             IsDiagnosing = false;
             _diagCts?.Dispose();
             _diagCts = null;
+        }
+    }
+
+    private async Task RunRiotDiagnosticsAsync()
+    {
+        if (IsRiotDiagnosing) return;
+        IsRiotDiagnosing = true;
+        RiotDiagStatus = DiagStatus.Running;
+        RiotDiagStatusText = Loc.T("Проверка Riot Games (clientconfig, auth, entitlements)…");
+        _riotDiagCts = new CancellationTokenSource();
+
+        var existingRiotRows = DiagRows.Where(r => r.Group == RiotDiagnosticsService.GroupName).ToList();
+        if (existingRiotRows.Count == 0)
+        {
+            foreach (var r in RiotDiagnosticsService.BuildRiotRows())
+            {
+                r.PropertyChanged += (_, _) => RefreshHomeServiceReachability();
+                DiagRows.Add(r);
+                existingRiotRows.Add(r);
+            }
+        }
+
+        foreach (var r in existingRiotRows) r.Reset();
+
+        try
+        {
+            var ct = _riotDiagCts.Token;
+            using var gate = new SemaphoreSlim(3);
+            var tasks = existingRiotRows.Select(async row =>
+            {
+                await gate.WaitAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    await _riotDiagnostics.ProbeRowAsync(row, ct).ConfigureAwait(false);
+                }
+                finally { gate.Release(); }
+            });
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+
+            int passed = existingRiotRows.Count(r => (r.Tls12 == DiagStatus.Ok || r.Tls13 == DiagStatus.Ok) && r.Http == DiagStatus.Ok);
+            int total = existingRiotRows.Count;
+
+            if (passed == total)
+            {
+                RiotDiagStatus = DiagStatus.Ok;
+                RiotDiagStatusText = Loc.T("Все эндпоинты Riot доступны (clientconfig, auth, entitlements).");
+            }
+            else if (passed > 0)
+            {
+                RiotDiagStatus = DiagStatus.Timeout;
+                RiotDiagStatusText = Loc.T("Частично доступны: {0} из {1} эндпоинтов Riot.", passed, total);
+            }
+            else
+            {
+                RiotDiagStatus = DiagStatus.Fail;
+                RiotDiagStatusText = Loc.T("Эндпоинты Riot недоступны ({0}/{1}).", passed, total);
+            }
+
+            Notify?.Invoke("GXBRIEL_ZAPRET", Loc.T("Диагностика Riot завершена: {0}", RiotDiagStatusText));
+        }
+        catch (OperationCanceledException)
+        {
+            RiotDiagStatus = DiagStatus.Canceled;
+            RiotDiagStatusText = Loc.T("Диагностика Riot остановлена.");
+            foreach (var r in existingRiotRows) r.CancelPending();
+        }
+        catch (Exception ex)
+        {
+            RiotDiagStatus = DiagStatus.Fail;
+            RiotDiagStatusText = Loc.T("Ошибка проверки Riot: ") + ex.Message;
+        }
+        finally
+        {
+            IsRiotDiagnosing = false;
+            _riotDiagCts?.Dispose();
+            _riotDiagCts = null;
         }
     }
 
@@ -818,6 +917,7 @@ public sealed partial class MainViewModel
         _unexpectedRecovery.Dispose();
         try { _blockcheck2.Dispose(); } catch { }
         try { _diagCts?.Cancel(); } catch { }
+        try { _riotDiagCts?.Cancel(); } catch { }
         try { _patcherCts?.Cancel(); } catch { }
         _patcherMonitorTimer?.Stop();
         _patcherMonitorCts?.Cancel();

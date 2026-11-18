@@ -581,6 +581,9 @@ public sealed partial class MainViewModel
             _monitor.Stop();
             if (IsRunning) _engine.Stop();
             if (_tgProxy.IsRunning) _tgProxy.Stop();
+            _antigravityRelayTimer?.Stop();
+            _antigravityRouteFeedback = null;
+            await _antigravityRelay.StopAsync();
             RestoreStaleSystemProxy();
             _autostart.Disable();
             await new GxbrielZapret.Services.Platform.BypassCleanupService()

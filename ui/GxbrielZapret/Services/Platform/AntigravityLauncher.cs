@@ -19,10 +19,12 @@ internal static class AntigravityLauncher
             Arguments = "/d /v:off /s /c \"\"%GX_ANTIGRAVITY_EXECUTABLE%\" 1>NUL 2>NUL\""
         };
         info.Environment["GX_ANTIGRAVITY_EXECUTABLE"] = path;
+        bool configuredProxy = false;
         if (!directConnection && !string.IsNullOrWhiteSpace(customProxy))
         {
             string proxy = customProxy.Trim();
             AntigravityProxy.Parse(proxy);
+            configuredProxy = true;
             info.Environment["AG_LS_PROXY"] = proxy;
             info.Environment["HTTPS_PROXY"] = proxy;
             if (!selectiveHttps)
@@ -41,6 +43,7 @@ internal static class AntigravityLauncher
         else if (AntigravityProxy.Read() is { } proxy)
         {
             AntigravityProxy.Parse(proxy);
+            configuredProxy = true;
             info.Environment["AG_LS_PROXY"] = proxy;
             info.Environment["HTTPS_PROXY"] = proxy;
             info.Environment["HTTP_PROXY"] = proxy;
@@ -48,7 +51,7 @@ internal static class AntigravityLauncher
         }
         // Stock Go builds read HTTPS_PROXY; an alternative patched build may read AG_LS_PROXY.
         // Keep both in the child only, and prevent an inherited NO_PROXY=* from bypassing this choice.
-        if (!directConnection && info.Environment.ContainsKey("AG_LS_PROXY"))
+        if (configuredProxy)
         {
             info.Environment.Remove("NO_PROXY");
             info.Environment.Remove("no_proxy");

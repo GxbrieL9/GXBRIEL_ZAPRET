@@ -26,6 +26,8 @@ public sealed class AntigravityRoutingTests
             Assert.DoesNotContain(direct, a => a.StartsWith("--lua-desync=") || a.StartsWith("--dpi-desync=") || a.StartsWith("--payload="));
             string[] hosts = domains["--hostlist-domains=".Length..].Split(',');
             Assert.Contains("daily-cloudcode-pa.googleapis.com", hosts);
+            Assert.Contains("cloudaicompanion-pa.googleapis.com", hosts);
+            Assert.Contains("aicode.googleapis.com", hosts);
             Assert.Contains("www.googleapis.com", hosts);
             Assert.Contains("lh3.googleusercontent.com", hosts);
             Assert.Contains("www.gstatic.com", hosts);

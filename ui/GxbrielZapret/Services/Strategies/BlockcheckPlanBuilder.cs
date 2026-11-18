@@ -87,8 +87,8 @@ public static class BlockcheckPlanBuilder
             if (hosts.All(direct.Contains)) choices.Insert(0, Array.Empty<string>());
             return choices.Take(3).ToArray();
         }
-        var dc = scope == AutoScope.YouTube ? new[] { Array.Empty<string>() } : Choices(AutoScope.Discord);
-        var yt = scope == AutoScope.Discord ? new[] { Array.Empty<string>() } : Choices(AutoScope.YouTube);
+        var dc = (scope == AutoScope.YouTube || scope == AutoScope.Riot) ? new[] { Array.Empty<string>() } : Choices(AutoScope.Discord);
+        var yt = (scope == AutoScope.Discord || scope == AutoScope.Riot) ? new[] { Array.Empty<string>() } : Choices(AutoScope.YouTube);
         foreach (var discord in dc)
             foreach (var youtube in yt)
                 Add(scope == AutoScope.YouTube ? null : discord, scope == AutoScope.Discord ? null : youtube);

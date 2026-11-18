@@ -2,22 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
 namespace GxbrielZapret.Services.Platform;
 
 /// <summary>
-/// Manages hosts-based routing for Blitz desktop and Let's Encrypt CRL endpoints.
-/// Riot domains intentionally use the configured DNS resolver so their CDN/Anycast
-/// addresses stay dynamic and are not pinned to an unverified edge IP.
+/// Manages hosts-based routing optimization for Blitz desktop and Let's Encrypt CRL endpoints.
+/// Riot Games and League of Legends domains are intentionally excluded from hosts overrides
+/// to allow Atlas OS / native DNS resolution without pinned or unconfirmed edge IP overrides.
 /// </summary>
 public static class RiotRoutingService
 {
-    private const string HeaderTag = "# GXBRIEL_ZAPRET - Game Routing Fix (Riot & Blitz)";
-    private const string FooterTag = "# END GXBRIEL_ZAPRET - Game Routing Fix";
-    private static readonly string[] LegacyHeaders =
+    public const string HeaderTag = "# GXBRIEL_ZAPRET - Game Routing Fix (Riot & Blitz)";
+    public const string FooterTag = "# END GXBRIEL_ZAPRET - Game Routing Fix";
+    public static readonly string[] LegacyHeaders =
     {
         "# GXBRIEL_ZAPRET - Game Routing Fix (Riot, Blitz & Splice)",
         "# GXBRIEL_ZAPRET - Game Routing Fix (Riot & Blitz)",
@@ -25,17 +24,13 @@ public static class RiotRoutingService
         "# GXBRIEL_ZAPRET - Riot clientconfig route (verified HTTPS)",
         "# GXBRIEL_ZAPRET - Riot clientconfig route"
     };
-    private static readonly string[] LegacyFooters =
+    public static readonly string[] LegacyFooters =
     {
         "# END GXBRIEL_ZAPRET - Riot Games Fix",
         "# END GXBRIEL_ZAPRET - Riot clientconfig route"
     };
-    private static readonly string[] RiotDomains =
-    {
-        "riotgames.com", "riotcdn.net", "pvp.net", "leagueoflegends.com"
-    };
 
-    private static readonly (string Ip, string Domain)[] Mappings =
+    public static readonly (string Ip, string Domain)[] Mappings =
     {
         // Blitz Desktop App
         ("185.111.111.155", "blitz.gg"),
@@ -71,7 +66,10 @@ public static class RiotRoutingService
     {
         try
         {
-            if (ensureVanguard && hostsPath is null) EnsureVanguardService();
+            if (ensureVanguard && hostsPath == null)
+            {
+                EnsureVanguardService();
+            }
 
             string path = hostsPath ?? HostsPath;
             if (!File.Exists(path)) return false;
@@ -80,10 +78,10 @@ public static class RiotRoutingService
             if (content.Contains(HeaderTag, StringComparison.OrdinalIgnoreCase) &&
                 content.Contains("blitz-desktop.blitz.gg", StringComparison.OrdinalIgnoreCase) &&
                 content.Contains("yr2.c.lencr.org", StringComparison.OrdinalIgnoreCase) &&
-                !RiotDomains.Any(domain => content.Contains(domain, StringComparison.OrdinalIgnoreCase)) &&
-                !content.Contains("api.splice.com", StringComparison.OrdinalIgnoreCase) &&
-                !content.Contains("104.16.120.50", StringComparison.OrdinalIgnoreCase) &&
-                !content.Contains("104.18.157.37", StringComparison.OrdinalIgnoreCase))
+                !content.Contains("clientconfig.rpg.riotgames.com", StringComparison.OrdinalIgnoreCase) &&
+                !content.Contains("riotgames.com", StringComparison.OrdinalIgnoreCase) &&
+                !content.Contains("pvp.net", StringComparison.OrdinalIgnoreCase) &&
+                !content.Contains("api.splice.com", StringComparison.OrdinalIgnoreCase))
             {
                 if (flushDns) FlushDns();
                 return true;
@@ -171,7 +169,7 @@ public static class RiotRoutingService
                 if (inBlock)
                 {
                     blockLineCount++;
-                    if (blockLineCount > 60)
+                    if (blockLineCount > 150)
                     {
                         inBlock = false;
                         filtered.Add(line);

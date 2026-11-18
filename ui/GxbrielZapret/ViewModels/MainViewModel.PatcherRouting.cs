@@ -14,7 +14,7 @@ public sealed partial class MainViewModel
     public bool BuiltinAntigravityRoutingEnabled => Settings.AntigravityBuiltinRouting;
     public bool CanEditPatcherProxy => CanRunPatcher && !BuiltinAntigravityRoutingEnabled;
     public string BuiltinAntigravityRoutingLabel => BuiltinAntigravityRoutingEnabled ? "Выключить встроенный маршрут" : "Включить встроенный маршрут";
-    private string _builtinAntigravityStatus = "Встроенный маршрут: без отдельного VPN и ввода адреса прокси. GX использует публичные маршруты DNS-AI / MagicDNS только для API Antigravity. Доступность зависит от этих сервисов.";
+    private string _builtinAntigravityStatus = "Маршрут выключен. Нажмите «Включить встроенный маршрут». Доступность зависит от публичных сервисов.";
     public string BuiltinAntigravityStatus { get => _builtinAntigravityStatus; private set => SetField(ref _builtinAntigravityStatus, value); }
     public RelayCommand ToggleBuiltinAntigravityCommand { get; private set; } = null!;
     public RelayCommand CheckBuiltinAntigravityCommand { get; private set; } = null!;

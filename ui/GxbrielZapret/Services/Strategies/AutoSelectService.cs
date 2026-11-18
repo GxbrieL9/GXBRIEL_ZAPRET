@@ -123,7 +123,7 @@ public sealed class AutoSelectService : IDisposable
         StartEngine(cand);
         try
         {
-            await _runner.WaitReadyAsync(ct); // until WinDivert is attached (capped at 1500ms)
+            await _runner.WaitReadyAsync(ct); // until WinDivert is attached (capped at 2000ms)
             // 3 signals per host: TLS 1.2, TLS 1.3, and a full HTTPS GET (the request must actually
             // complete, not just the handshake — a handshake-only check ranks "TLS OK but resets" too high).
             int total = hosts.Count * 3;
@@ -131,9 +131,9 @@ public sealed class AutoSelectService : IDisposable
                 return new AutoScore(cand.Name, 0, total, total, cand,
                     hosts.Select(h => new AutoHostResult(h, DiagStatus.Fail, DiagStatus.Fail, DiagStatus.Fail)).ToList());
 
-            // Probe all hosts in parallel (all three checks concurrently) — the slow part is the
-            // per-probe timeout, so this turns "sum of host times" into "the slowest host".
-            using var gate = new SemaphoreSlim(2);
+            // Probe all hosts in parallel (all three checks concurrently per host, up to 5 hosts at once) — the
+            // slow part is the per-probe timeout, so this turns "sum of host times" into "the slowest host".
+            using var gate = new SemaphoreSlim(5);
             var probes = hosts.Select(async host =>
             {
                 await gate.WaitAsync(ct).ConfigureAwait(false);

@@ -38,7 +38,7 @@ public sealed partial class MainViewModel
                 _settingsSvc.Save();
                 PatcherDirectConnection = false;
                 PatcherProxyInput = "";
-                PatcherProxyStatus = AntigravityProxyDiagnostic.Read() + " Прокси сохранён в Windows. Перезапустите Antigravity для применения.";
+                PatcherProxyStatus = AntigravityProxyDiagnostic.Read() + " Сохранено для запуска из GX. Перезапустите Antigravity кнопкой GX для применения.";
             }
             catch (ArgumentException ex) { PatcherProxyStatus = ex.Message; }
             catch { PatcherProxyStatus = "Не удалось сохранить AG_LS_PROXY в окружении пользователя Windows."; }

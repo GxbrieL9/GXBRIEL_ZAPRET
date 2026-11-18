@@ -84,6 +84,7 @@ public sealed partial class MainViewModel
             OnPropertyChanged(nameof(ScopeBoth));
             OnPropertyChanged(nameof(ScopeDiscord));
             OnPropertyChanged(nameof(ScopeYouTube));
+            OnPropertyChanged(nameof(ScopeRiot));
             OnPropertyChanged(nameof(ScopeTitle));
             ResetAutoTargetsForScope();
             OnPropertyChanged(nameof(WorkPresetCount));
@@ -102,6 +103,7 @@ public sealed partial class MainViewModel
     public bool ScopeBoth { get => SelectedAutoScope == AutoScope.Both; set { if (value) SelectedAutoScope = AutoScope.Both; } }
     public bool ScopeDiscord { get => SelectedAutoScope == AutoScope.Discord; set { if (value) SelectedAutoScope = AutoScope.Discord; } }
     public bool ScopeYouTube { get => SelectedAutoScope == AutoScope.YouTube; set { if (value) SelectedAutoScope = AutoScope.YouTube; } }
+    public bool ScopeRiot { get => SelectedAutoScope == AutoScope.Riot; set { if (value) SelectedAutoScope = AutoScope.Riot; } }
 
     public string ScopeTitle => Loc.T(SelectedAutoScope.Title());
     private IReadOnlyList<string> ActiveProbeTargets => SelectedAutoScope.GoalHosts();

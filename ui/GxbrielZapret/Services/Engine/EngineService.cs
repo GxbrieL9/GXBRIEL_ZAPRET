@@ -240,7 +240,7 @@ public sealed partial class EngineService : IDisposable
         var direct = new List<string>
         {
             "--filter-tcp=80,443,8443", "--filter-l7=http,tls",
-            "--hostlist-domains=riotgames.com,riotcdn.net,pvp.net,leagueoflegends.com"
+            "--hostlist-domains=riotgames.com,riotcdn.net,pvp.net,leagueoflegends.com,rdevs.com"
         };
         // Preserve the user's explicit targeted entitlement workaround when enabled.
         if (entitlementsBypass)
@@ -263,7 +263,7 @@ public sealed partial class EngineService : IDisposable
         args.InsertRange(firstProfile, new[]
         {
             "--filter-tcp=80,443-65535", "--filter-udp=443-65535", "--filter-l7=http,tls,quic",
-            "--hostlist-domains=antigravity.google,accounts.google.com,www.googleapis.com,oauth2.googleapis.com,generativelanguage.googleapis.com,alkalimakersuite-pa.clients6.google.com,cloudaicompanion.googleapis.com,cloudcode-pa.googleapis.com,daily-cloudcode-pa.googleapis.com,autopush-cloudcode-pa.sandbox.googleapis.com,staging-cloudcode-pa.sandbox.googleapis.com,proactivebackend-pa.googleapis.com,aiplatform.googleapis.com,aistudio.google.com,gemini.google.com,alkali.googleapis.com,deepmind.google,ai.google.dev,google.dev,play.googleapis.com,play.google.com,mail.google.com,docs.google.com,drive.google.com,translate.google.com,maps.google.com,calendar.google.com,lh3.googleusercontent.com,www.gstatic.com",
+            "--hostlist-domains=antigravity.google,accounts.google.com,www.googleapis.com,oauth2.googleapis.com,generativelanguage.googleapis.com,alkalimakersuite-pa.clients6.google.com,cloudaicompanion.googleapis.com,cloudaicompanion-pa.googleapis.com,aicode.googleapis.com,cloudcode-pa.googleapis.com,daily-cloudcode-pa.googleapis.com,autopush-cloudcode-pa.sandbox.googleapis.com,staging-cloudcode-pa.sandbox.googleapis.com,proactivebackend-pa.googleapis.com,aiplatform.googleapis.com,aistudio.google.com,gemini.google.com,alkali.googleapis.com,deepmind.google,ai.google.dev,google.dev,play.googleapis.com,play.google.com,mail.google.com,docs.google.com,drive.google.com,translate.google.com,maps.google.com,calendar.google.com,lh3.googleusercontent.com,www.gstatic.com",
             "--new"
         });
     }

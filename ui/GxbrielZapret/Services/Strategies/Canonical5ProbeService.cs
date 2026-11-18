@@ -153,11 +153,14 @@ public sealed class Canonical5ProbeService : IDisposable
                 ));
             }
 
-            progress.Stage("Первичный отсев · по 1 запросу на цель");
             using var sem = new SemaphoreSlim(6);
             var durations = new List<long>();
             var hostAnyOk = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-            var targetAttempts = targets.ToDictionary(t => t, _ => new List<string>(), StringComparer.OrdinalIgnoreCase);
+            var targetAttempts = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var t in targets) targetAttempts[t] = new List<string>();
+
+            // --- STAGE 1: Первичный отсев (1 запрос на target, fail-fast при первом подтверждённом отказе) ---
+            progress.Stage("Первичный отсев · по 1 запросу на цель");
             bool stage1Passed = true;
             using (var stage1Cts = CancellationTokenSource.CreateLinkedTokenSource(ct))
             {
@@ -166,63 +169,131 @@ public sealed class Canonical5ProbeService : IDisposable
                     await sem.WaitAsync(stage1Cts.Token).ConfigureAwait(false);
                     try
                     {
+                        stage1Cts.Token.ThrowIfCancellationRequested();
                         var timer = Stopwatch.StartNew();
                         progress.Update($"{target} · первичный запрос");
                         var evidence = await _probeTarget(target, stage1Cts.Token).ConfigureAwait(false);
                         timer.Stop();
                         lock (durations) durations.Add(Math.Max(1, timer.ElapsedMilliseconds));
-                        bool ok = evidence.Passed == true;
-                        lock (probeResults) { probeResults[target] = ok; hostAnyOk[target] = ok; targetAttempts[target].Add($"1/3: {evidence.Detail} ({timer.ElapsedMilliseconds} ms)"); }
-                        if (!ok) { stage1Passed = false; stage1Cts.Cancel(); }
-                        onHostProbed?.Invoke(target, ok);
+                        bool stepOk = evidence.Passed == true;
+                        lock (probeResults)
+                        {
+                            probeResults[target] = stepOk;
+                            hostAnyOk[target] = stepOk;
+                            targetAttempts[target].Add($"1/3: {evidence.Detail} ({timer.ElapsedMilliseconds} ms)");
+                        }
+                        if (!stepOk)
+                        {
+                            stage1Passed = false;
+                            try { stage1Cts.Cancel(); } catch (ObjectDisposedException) { }
+                        }
+                        onHostProbed?.Invoke(target, stepOk);
                     }
-                    catch (OperationCanceledException) when (!ct.IsCancellationRequested) { }
-                    finally { sem.Release(); }
+                    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                    {
+                        // Canceled by fail-fast because another target confirmed failure
+                    }
+                    finally
+                    {
+                        sem.Release();
+                    }
                 });
-                try { await Task.WhenAll(stage1Tasks).ConfigureAwait(false); }
-                catch (OperationCanceledException) when (!ct.IsCancellationRequested) { }
-            }
-            ct.ThrowIfCancellationRequested();
-            if (!stage1Passed || !_runner.IsAlive || !targets.All(t => probeResults.TryGetValue(t, out bool ok) && ok))
-            {
-                if (!_runner.IsAlive) foreach (var target in targets) probeResults[target] = false;
-                foreach (var target in targets) targetDetails[target] = targetAttempts[target].Count == 0 ? "пропущен (fail-fast отсев)" : string.Join("; ", targetAttempts[target]);
-                int passed = probeResults.Values.Count(v => v);
-                long latency = durations.Count > 0 ? durations.Max() : 0;
-                return Finish(new Canonical5ProbeResult(preset.Name, preset.ReferenceId ?? preset.Fingerprint,
-                    IsWork: false, PassCount: passed, TotalCount: targets.Count, LatencyMs: latency,
-                    Probes: probeResults, Summary: $"{passed}/{targets.Count} целей · первичный отсев; худшая задержка {latency} ms",
-                    Flows: null, TargetDetails: targetDetails));
+
+                try
+                {
+                    await Task.WhenAll(stage1Tasks).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    // Fail-fast triggered
+                }
             }
 
-            progress.Stage("Подтверждение WORK · повторы 2/3");
+            ct.ThrowIfCancellationRequested();
+
+            if (!stage1Passed || !_runner.IsAlive || !targets.All(t => probeResults.TryGetValue(t, out bool ok) && ok))
+            {
+                sw.Stop();
+                bool engineAliveEarly = _runner.IsAlive;
+                if (!engineAliveEarly)
+                    foreach (var target in targets) probeResults[target] = false;
+
+                foreach (var t in targets)
+                {
+                    targetDetails[t] = targetAttempts[t].Count > 0
+                        ? string.Join("; ", targetAttempts[t])
+                        : "пропущен (fail-fast отсев)";
+                }
+
+                int earlyPassCount = probeResults.Values.Count(v => v);
+                int earlyTotalCount = targets.Count;
+                long earlyLatencyMs = durations.Count > 0 ? durations.Max() : 0;
+                string earlySummary = Loc.T("{0}/{1} целей (не прошло)", earlyPassCount, earlyTotalCount);
+                earlySummary += $" · первичный отсев; худшая задержка {earlyLatencyMs} ms";
+                if (earlyPassCount < earlyTotalCount)
+                    earlySummary += " · " + string.Join("; ", targetDetails.Where(p => !probeResults[p.Key]).Select(p => p.Key + ": " + p.Value));
+
+                return Finish(new Canonical5ProbeResult(
+                    preset.Name,
+                    preset.ReferenceId ?? preset.Fingerprint,
+                    IsWork: false,
+                    PassCount: earlyPassCount,
+                    TotalCount: earlyTotalCount,
+                    LatencyMs: earlyLatencyMs,
+                    Probes: probeResults,
+                    Summary: earlySummary,
+                    Flows: null,
+                    TargetDetails: targetDetails
+                ));
+            }
+
+            // --- STAGE 2: Финальное подтверждение WORK (повторные проверки до 3 запросов на цель + потоковые пробы) ---
+            progress.Stage("Подтверждение WORK · повторные проверки 2-3");
             var stage2Tasks = targets.Select(async target =>
             {
                 await sem.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
-                    bool ok = true;
-                    bool anyOk = hostAnyOk[target];
+                    ct.ThrowIfCancellationRequested();
+                    bool ok = probeResults[target];
+                    bool anyOk = hostAnyOk.TryGetValue(target, out bool aOk) && aOk;
                     for (int attempt = 1; attempt < 3; attempt++)
                     {
                         var timer = Stopwatch.StartNew();
-                        progress.Update($"{target} · подтверждение {attempt + 1}/3");
+                        progress.Update($"{target} · запрос {attempt + 1}/3");
                         var evidence = await _probeTarget(target, ct).ConfigureAwait(false);
                         timer.Stop();
                         lock (durations) durations.Add(Math.Max(1, timer.ElapsedMilliseconds));
                         bool stepOk = evidence.Passed == true;
-                        ok &= stepOk; anyOk |= stepOk;
-                        targetAttempts[target].Add($"{attempt + 1}/3: {evidence.Detail} ({timer.ElapsedMilliseconds} ms)");
+                        ok &= stepOk;
+                        anyOk |= stepOk;
+                        lock (targetAttempts)
+                        {
+                            targetAttempts[target].Add($"{attempt + 1}/3: {evidence.Detail} ({timer.ElapsedMilliseconds} ms)");
+                        }
                     }
-                    lock (probeResults) { probeResults[target] = ok; hostAnyOk[target] = anyOk; }
-                    targetDetails[target] = string.Join("; ", targetAttempts[target]);
+                    lock (probeResults)
+                    {
+                        probeResults[target] = ok;
+                        hostAnyOk[target] = anyOk;
+                    }
                     onHostProbed?.Invoke(target, ok);
                     return ok;
                 }
-                finally { sem.Release(); }
+                finally
+                {
+                    sem.Release();
+                }
             });
+
             await Task.WhenAll(stage2Tasks).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
+
+            foreach (var t in targets)
+            {
+                targetDetails[t] = string.Join("; ", targetAttempts[t]);
+            }
+
             bool engineAlive = _runner.IsAlive;
             if (!engineAlive)
                 foreach (var target in targets) probeResults[target] = false;

@@ -108,7 +108,8 @@ public sealed partial class MainViewModel
             if (!closeOnly) await Task.Run(() => Process.Start(AntigravityLauncher.BuildStartInfo(executable,
                 Settings.AntigravityDirectConnection, proxyToUse, selectiveHttps: Settings.AntigravityBuiltinRouting)));
             PatcherStatusMessage = closeOnly ? "Процессы выбранной установки закрыты." : "Команда запуска Antigravity отправлена. Ответ модели не проверен.";
-            if (!closeOnly && proxyToUse is not null && !Settings.AntigravityDirectConnection) PatcherStatusMessage += " Настроенный прокси передан в AG_LS_PROXY. Адрес и учётные данные скрыты.";
+            if (!closeOnly && Settings.AntigravityBuiltinRouting && !Settings.AntigravityDirectConnection) PatcherStatusMessage += " Применён встроенный маршрут GX. Оставьте GX запущенным в трее.";
+            else if (!closeOnly && proxyToUse is not null && !Settings.AntigravityDirectConnection) PatcherStatusMessage += " Настроенный прокси передан в AG_LS_PROXY / HTTPS_PROXY. Адрес и учётные данные скрыты.";
             else if (!closeOnly && Settings.AntigravityDirectConnection) PatcherStatusMessage += " Режим без AG_LS_PROXY применён к новому процессу.";
             else if (!closeOnly) PatcherStatusMessage += " " + AntigravityProxyDiagnostic.Read() + " Если Antigravity уже был открыт, используйте перезапуск для применения окружения.";
             AppendPatcherLog(PatcherStatusMessage);

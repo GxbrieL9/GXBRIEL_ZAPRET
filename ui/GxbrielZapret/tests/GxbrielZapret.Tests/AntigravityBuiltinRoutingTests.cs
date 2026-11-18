@@ -14,6 +14,80 @@ public sealed class AntigravityBuiltinRoutingTests
     private const string Host = "daily-cloudcode-pa.googleapis.com";
 
     [Fact]
+    public async Task ApiAliasDiscoversPublishedGatewayInsteadOfGenuineGoogleDns()
+    {
+        string gateway = "cloudcode-pa.googleapis.com";
+        Assert.Equal(gateway, AntigravitySmartDns.GatewayName("cloudaicompanion-pa.googleapis.com"));
+        using var http = new HttpClient(new Handler(request =>
+        {
+            string encoded = request.RequestUri!.Query[5..].Replace('-', '+').Replace('_', '/');
+            encoded += new string('=', (4 - encoded.Length % 4) % 4);
+            Assert.Equal(AntigravitySmartDns.BuildQuery(gateway), Convert.FromBase64String(encoded));
+            var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(Answer(gateway, [142, 250, 1, 1])) };
+            response.Content.Headers.ContentType = new("application/dns-message");
+            return response;
+        }));
+        using var routes = new AntigravitySmartDns(http);
+        await Assert.ThrowsAsync<IOException>(() => routes.ConnectAsync("cloudaicompanion-pa.googleapis.com", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task GenuineGoogleDnsAnswerDoesNotMasqueradeAsExternalRoute()
+    {
+        Assert.True(AntigravityGoogleNetworks.Contains(IPAddress.Parse("142.250.1.1")));
+        Assert.True(AntigravityGoogleNetworks.Contains(IPAddress.Parse("172.217.1.1")));
+        Assert.True(AntigravityGoogleNetworks.Contains(IPAddress.Parse("2001:4860::8888")));
+        Assert.False(AntigravityGoogleNetworks.Contains(IPAddress.Parse("217.144.190.216")));
+        int requests = 0;
+        using var http = new HttpClient(new Handler(request =>
+        {
+            requests++;
+            var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(Answer(Host, [142, 250, 1, 1])) };
+            response.Content.Headers.ContentType = new("application/dns-message");
+            return response;
+        }));
+        using var routes = new AntigravitySmartDns(http);
+        await Assert.ThrowsAsync<IOException>(() => routes.ConnectAsync(Host, CancellationToken.None));
+        Assert.Equal(AntigravitySmartDns.Providers.Length, requests);
+    }
+
+    [Fact]
+    public async Task SwitchingRouteClosesApiTunnelAndKeepsUnrelatedTunnel()
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+        using var upstream = new TcpListener(IPAddress.Loopback, 0);
+        upstream.Start();
+        var peers = new System.Collections.Concurrent.ConcurrentBag<TcpClient>();
+        using var relay = new AntigravityRelayService(async (host, ct) =>
+        {
+            var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            await socket.ConnectAsync((IPEndPoint)upstream.LocalEndpoint, ct);
+            peers.Add(await upstream.AcceptTcpClientAsync(ct));
+            return new NetworkStream(socket, ownsSocket: true);
+        });
+        try
+        {
+            int port = new Uri(relay.Start()).Port;
+            using var api = new TcpClient();
+            using var other = new TcpClient();
+            await api.ConnectAsync(IPAddress.Loopback, port, timeout.Token);
+            using var apiStream = api.GetStream();
+            await apiStream.WriteAsync(Encoding.ASCII.GetBytes($"CONNECT {Host}:443 HTTP/1.1\r\n\r\n"), timeout.Token);
+            Assert.Contains("200", await ReadHeaders(apiStream, timeout.Token));
+            await other.ConnectAsync(IPAddress.Loopback, port, timeout.Token);
+            using var otherStream = other.GetStream();
+            await otherStream.WriteAsync(Encoding.ASCII.GetBytes("CONNECT github.com:443 HTTP/1.1\r\n\r\n"), timeout.Token);
+            Assert.Contains("200", await ReadHeaders(otherStream, timeout.Token));
+            relay.NextRoute();
+            Assert.Equal(0, await apiStream.ReadAsync(new byte[1], timeout.Token));
+            using var shortWait = new CancellationTokenSource(TimeSpan.FromMilliseconds(150));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => { _ = await otherStream.ReadAsync(new byte[1], shortWait.Token); });
+            await relay.StopAsync().WaitAsync(timeout.Token);
+        }
+        finally { foreach (var peer in peers) peer.Dispose(); }
+    }
+
+    [Fact]
     public void ChildLaunchCoversStockGoAndAlternativePatchesWithoutPersistingProxy()
     {
         string path = Path.Combine(Path.GetTempPath(), "gx-launch-" + Guid.NewGuid().ToString("N") + ".exe");

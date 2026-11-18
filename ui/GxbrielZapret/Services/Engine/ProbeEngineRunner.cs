@@ -31,10 +31,10 @@ internal interface IProbeEngineRunner : IDisposable
 internal sealed class ProbeEngineRunner : IProbeEngineRunner
 {
     /// <summary>Cap on the explicit WinDivert-capture wait; timeout does not confirm readiness.</summary>
-    private const int ReadyCapMs = 3000;
+    private const int ReadyCapMs = 2000;
 
     /// <summary>Let WinDivert go live after the log line before traffic is probed (matching proven old GX startup delay).</summary>
-    private const int SettleMs = 1200;
+    private const int SettleMs = 700;
 
     /// <summary>Grace period for the killed process to actually detach from WinDivert.</summary>
     private const int ExitWaitMs = 4000;

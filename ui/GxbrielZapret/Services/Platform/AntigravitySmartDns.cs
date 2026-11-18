@@ -20,8 +20,8 @@ internal sealed class AntigravitySmartDns : IDisposable
     ];
     internal static readonly (string Name, string Url)[] Providers =
     [
-        ("DNS-AI", "https://dns.dns-ai.ru/dns-query"),
         ("MagicDNS", "https://api.magicinfo.art/rpc"),
+        ("DNS-AI", "https://dns.dns-ai.ru/dns-query"),
         ("DNS-AI · запасной вход", "https://cf.dns-ai.ru/dns-query")
     ];
     private readonly HttpClient _http;
@@ -31,12 +31,24 @@ internal sealed class AntigravitySmartDns : IDisposable
     }) { Timeout = TimeSpan.FromSeconds(5) };
     private readonly ConcurrentDictionary<string, (IPAddress[] Addresses, long Expires)> _cache = new();
     private readonly ConcurrentDictionary<string, long> _verified = new();
+    private readonly ConcurrentDictionary<string, (IPAddress Address, int Provider)> _selected = new();
+    private readonly ConcurrentDictionary<string, long> _heldAddresses = new();
     private int _firstProvider;
+    private int _lastSuccessfulProvider = -1;
     internal string LastRoute { get; private set; } = "Ожидание запроса Antigravity. Ответ модели не проверен.";
     internal static bool IsRouted(string host) => RoutedHosts.Contains(host, StringComparer.OrdinalIgnoreCase);
+    // These API aliases can receive ordinary Google DNS even when the provider's Cloud Code
+    // gateway carries them. Discover that gateway dynamically, but ALWAYS validate TLS for host.
+    internal static string GatewayName(string host) => host is "cloudaicompanion-pa.googleapis.com" or
+        "cloudaicompanion.googleapis.com" or "aicode.googleapis.com" ? "cloudcode-pa.googleapis.com" : host;
     internal void NextRoute()
     {
-        Interlocked.Increment(ref _firstProvider);
+        int previous = Interlocked.Exchange(ref _lastSuccessfulProvider, -1);
+        int first = previous >= 0 ? previous : Volatile.Read(ref _firstProvider);
+        Interlocked.Exchange(ref _firstProvider, (first + 1) % Providers.Length);
+        foreach (var selected in _selected)
+            _heldAddresses[selected.Key + "|" + selected.Value.Address] = Environment.TickCount64 + 120000;
+        _selected.Clear();
         LastRoute = "Выбран следующий маршрут. Проверьте новое сообщение в Antigravity.";
     }
 
@@ -51,10 +63,11 @@ internal sealed class AntigravitySmartDns : IDisposable
             var provider = Providers[(first + i) % Providers.Length];
             try
             {
-                string key = provider.Url + "|" + host;
+                string dnsHost = GatewayName(host);
+                string key = provider.Url + "|" + dnsHost;
                 if (!_cache.TryGetValue(key, out var cached) || cached.Expires <= Environment.TickCount64)
                 {
-                    byte[] query = BuildQuery(host);
+                    byte[] query = BuildQuery(dnsHost);
                     string dns = Convert.ToBase64String(query).TrimEnd('=').Replace('+', '-').Replace('/', '_');
                     using var request = new HttpRequestMessage(HttpMethod.Get, provider.Url + "?dns=" + dns)
                     { Version = HttpVersion.Version20, VersionPolicy = HttpVersionPolicy.RequestVersionOrLower };
@@ -71,13 +84,15 @@ internal sealed class AntigravitySmartDns : IDisposable
                         if (bytes.Length + count > 65535) throw new IOException("Слишком большой ответ DoH.");
                         bytes.Write(buffer, 0, count);
                     }
-                    var parsed = ParseAnswer(bytes.ToArray(), host);
-                    cached = (parsed.Addresses, Environment.TickCount64 + parsed.Ttl * 1000L);
+                    var parsed = ParseAnswer(bytes.ToArray(), dnsHost);
+                    cached = (parsed.Addresses.Where(address => !AntigravityGoogleNetworks.Contains(address)).ToArray(),
+                        Environment.TickCount64 + parsed.Ttl * 1000L);
                     if (cached.Addresses.Length == 0) throw new IOException("DoH не вернул публичный адрес.");
                     _cache[key] = cached;
                 }
                 foreach (var address in cached.Addresses.Take(4))
                 {
+                    if (_heldAddresses.TryGetValue(host + "|" + address, out long heldUntil) && heldUntil > Environment.TickCount64) continue;
                     try
                     {
                         string verifiedKey = host + "|" + address;
@@ -94,6 +109,10 @@ internal sealed class AntigravitySmartDns : IDisposable
                                 foreach (var old in _verified.Where(v => v.Value <= Environment.TickCount64)) _verified.TryRemove(old.Key, out _);
                         }
                         Stream stream = await ConnectPublicAsync([address], ct).ConfigureAwait(false);
+                        _selected[host] = (address, (first + i) % Providers.Length);
+                        Interlocked.Exchange(ref _lastSuccessfulProvider, (first + i) % Providers.Length);
+                        if (_heldAddresses.Count > 128)
+                            foreach (var old in _heldAddresses.Where(v => v.Value <= Environment.TickCount64)) _heldAddresses.TryRemove(old.Key, out _);
                         LastRoute = $"Маршрут: {provider.Name}. TLS Google проверен. Ответ модели не проверен.";
                         return stream;
                     }
