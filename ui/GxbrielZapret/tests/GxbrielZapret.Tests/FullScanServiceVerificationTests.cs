@@ -115,8 +115,22 @@ public sealed class FullScanServiceVerificationTests : IDisposable
     [InlineData("discord.com", "200", true)]
     [InlineData("cdn.discordapp.com", "403", true)]
     [InlineData("i.ytimg.com", "404", true)]
+    [InlineData("clientconfig.rpg.riotgames.com", "405", true)]
+    [InlineData("auth.riotgames.com", "404", true)]
+    [InlineData("entitlements.auth.riotgames.com", "307", true)]
+    [InlineData("clientconfig.rpg.riotgames.com", "503", false)]
+    [InlineData("clientconfig.rdevs.com", "405", false)]
     public void TransportResponseIsNotAutomaticallyServiceSuccess(string host, string code, bool expected) =>
         Assert.Equal(expected, Canonical5ProbeService.IsExpectedTargetResponse(host, code));
+
+    [Fact]
+    public void RiotGoalHostsInfersRiotScope()
+    {
+        var hosts = AutoScope.Riot.GoalHosts();
+        Assert.DoesNotContain("clientconfig.rdevs.com", hosts);
+        Assert.Contains("clientconfig.rpg.riotgames.com", hosts);
+        Assert.Equal(AutoScope.Riot, Canonical5ProbeService.ScopeForTargets(hosts));
+    }
 
     [Fact]
     public void HttpsOnlyCannotBeWrittenAsWork()

@@ -472,7 +472,11 @@ public sealed class Canonical5ProbeService : IDisposable
         var hosts = targets.ToHashSet(StringComparer.OrdinalIgnoreCase);
         bool youtube = AutoScope.YouTube.GoalHosts().Any(hosts.Contains);
         bool discord = AutoScope.Discord.GoalHosts().Any(hosts.Contains);
-        return youtube && discord ? AutoScope.Both : youtube ? AutoScope.YouTube : discord ? AutoScope.Discord : null;
+        if (youtube && discord) return AutoScope.Both;
+        if (youtube) return AutoScope.YouTube;
+        if (discord) return AutoScope.Discord;
+        bool riot = AutoScope.Riot.GoalHosts().Any(hosts.Contains);
+        return riot ? AutoScope.Riot : null;
     }
 
     internal static bool IsExpectedTargetResponse(string target, string code)
@@ -480,11 +484,14 @@ public sealed class Canonical5ProbeService : IDisposable
         if (int.TryParse(code, out int status) && status is >= 200 and <= 299) return true;
         // These bare service roots intentionally return an error. This is reachability evidence
         // only; WORK additionally requires real video bytes and/or the Discord WebSocket Hello.
-        return target.ToLowerInvariant() switch
+        return target.Trim().ToLowerInvariant() switch
         {
             "cdn.discordapp.com" or "challenges.cloudflare.com" => code == "403",
             "i.ytimg.com" or "updates.discord.com" => code == "404",
             "gateway.discord.gg" => code is "400" or "404",
+            "clientconfig.rpg.riotgames.com" => code == "405",
+            "auth.riotgames.com" => code == "404",
+            "entitlements.auth.riotgames.com" => code == "307",
             _ => false
         };
     }

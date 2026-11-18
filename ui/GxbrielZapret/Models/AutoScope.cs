@@ -32,11 +32,11 @@ public static class AutoScopeExt
                              "updates.discord.com", "challenges.cloudflare.com" };
         string[] youtube = { "www.youtube.com", "youtu.be", "i.ytimg.com", "redirector.googlevideo.com" };
         // Riot/LoL: auth and config endpoints that use Cloudflare CDN and are blocked by SNI.
-        // clientconfig.rdevs.com & clientconfig.rpg.riotgames.com — League client config gates (updates/login).
+        // clientconfig.rpg.riotgames.com — official League client config gate (updates/login).
         // auth.riotgames.com — Riot account authentication (Cloudflare-fronted, SNI-blocked in RU).
         // entitlements.auth.riotgames.com — required to pass entitlement check after login.
         // bacon.secure.dyn.riotcdn.net — XMPP/WebSocket presence service (Riotcdn, also SNI-checked).
-        string[] riot = { "clientconfig.rdevs.com", "clientconfig.rpg.riotgames.com", "auth.riotgames.com",
+        string[] riot = { "clientconfig.rpg.riotgames.com", "auth.riotgames.com",
                           "entitlements.auth.riotgames.com", "bacon.secure.dyn.riotcdn.net" };
         return s switch
         {
