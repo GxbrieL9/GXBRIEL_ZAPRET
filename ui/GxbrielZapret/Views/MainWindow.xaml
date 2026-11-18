@@ -1844,10 +1844,19 @@
                                     <Button Content="{loc:Loc 'Остановить'}" Command="{Binding StopDpiCheckCommand}"
                                             Style="{StaticResource DangerButton}" Margin="0,0,8,8"
                                             Visibility="{Binding IsDpiChecking, Converter={StaticResource BoolToVis}}"/>
+                                    <Button Content="Riot / LoL" Command="{Binding RunRiotDiagnosticsCommand}"
+                                            Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"
+                                            ToolTip="Проверяет HTTPS лаунчера и авторизации Riot; игровой матч не проверяется."
+                                            Visibility="{Binding IsRiotDiagnosing, Converter={StaticResource BoolToVis}, ConverterParameter=invert}"/>
+                                    <Button Content="Остановить Riot" Command="{Binding StopRiotDiagnosticsCommand}"
+                                            Style="{StaticResource DangerButton}" Margin="0,0,8,8"
+                                            Visibility="{Binding IsRiotDiagnosing, Converter={StaticResource BoolToVis}}"/>
                                 </WrapPanel>
 
                                 <TextBlock Text="{Binding AutoStatusText}" Style="{StaticResource Muted}"
                                            Margin="0,12,0,0" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding RiotDiagStatusText}" Style="{StaticResource Muted}"
+                                           Margin="0,4,0,0" TextWrapping="Wrap"/>
 
                                 <Border Background="{StaticResource WarnSoftBrush}" BorderBrush="{StaticResource WarnBrush}" BorderThickness="1" CornerRadius="8" Padding="10,7" Margin="0,12,0,0">
                                     <TextBlock Text="{Binding DiagEngineNote}" TextWrapping="Wrap"

@@ -157,6 +157,8 @@ public sealed partial class MainViewModel : ObservableObject
 
         RunDiagnosticsCommand = new RelayCommand(async _ => await RunDiagnosticsAsync(), _ => !IsDiagnosing && !IsAutoRunning);
         StopDiagnosticsCommand = new RelayCommand(_ => _diagCts?.Cancel(), _ => IsDiagnosing);
+        RunRiotDiagnosticsCommand = new RelayCommand(async _ => await RunRiotDiagnosticsAsync(), _ => !IsRiotDiagnosing && !IsAutoRunning);
+        StopRiotDiagnosticsCommand = new RelayCommand(_ => _riotDiagCts?.Cancel(), _ => IsRiotDiagnosing);
         RunDpiCheckCommand = new RelayCommand(async _ => await RunDpiCheckAsync(),
             _ => !IsDpiChecking && !IsDiagnosing && !IsAutoRunning);
         StopDpiCheckCommand = new RelayCommand(_ => _dpiCts?.Cancel(), _ => IsDpiChecking);
@@ -336,6 +338,8 @@ public sealed partial class MainViewModel : ObservableObject
     public RelayCommand GoToHelpCommand { get; }
     public RelayCommand RunDiagnosticsCommand { get; }
     public RelayCommand StopDiagnosticsCommand { get; }
+    public RelayCommand RunRiotDiagnosticsCommand { get; }
+    public RelayCommand StopRiotDiagnosticsCommand { get; }
     public RelayCommand RunDpiCheckCommand { get; }
     public RelayCommand StopDpiCheckCommand { get; }
     public RelayCommand RunAutoSelectCommand { get; }
@@ -681,6 +685,8 @@ public sealed partial class MainViewModel : ObservableObject
         SimpleToggleCommand.RaiseCanExecuteChanged();
         RunDiagnosticsCommand.RaiseCanExecuteChanged();
         StopDiagnosticsCommand.RaiseCanExecuteChanged();
+        RunRiotDiagnosticsCommand.RaiseCanExecuteChanged();
+        StopRiotDiagnosticsCommand.RaiseCanExecuteChanged();
         RunDpiCheckCommand.RaiseCanExecuteChanged();
         StopDpiCheckCommand.RaiseCanExecuteChanged();
         RunAutoSelectCommand.RaiseCanExecuteChanged();

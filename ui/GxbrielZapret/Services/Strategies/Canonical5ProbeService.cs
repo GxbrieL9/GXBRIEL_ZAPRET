@@ -153,48 +153,75 @@ public sealed class Canonical5ProbeService : IDisposable
                 ));
             }
 
-            progress.Stage("Проверка сайтов · по 3 запроса на цель");
+            progress.Stage("Первичный отсев · по 1 запросу на цель");
             using var sem = new SemaphoreSlim(6);
             var durations = new List<long>();
             var hostAnyOk = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-            var tasks = targets.Select(async target =>
+            var targetAttempts = targets.ToDictionary(t => t, _ => new List<string>(), StringComparer.OrdinalIgnoreCase);
+            bool stage1Passed = true;
+            using (var stage1Cts = CancellationTokenSource.CreateLinkedTokenSource(ct))
+            {
+                var stage1Tasks = targets.Select(async target =>
+                {
+                    await sem.WaitAsync(stage1Cts.Token).ConfigureAwait(false);
+                    try
+                    {
+                        var timer = Stopwatch.StartNew();
+                        progress.Update($"{target} · первичный запрос");
+                        var evidence = await _probeTarget(target, stage1Cts.Token).ConfigureAwait(false);
+                        timer.Stop();
+                        lock (durations) durations.Add(Math.Max(1, timer.ElapsedMilliseconds));
+                        bool ok = evidence.Passed == true;
+                        lock (probeResults) { probeResults[target] = ok; hostAnyOk[target] = ok; targetAttempts[target].Add($"1/3: {evidence.Detail} ({timer.ElapsedMilliseconds} ms)"); }
+                        if (!ok) { stage1Passed = false; stage1Cts.Cancel(); }
+                        onHostProbed?.Invoke(target, ok);
+                    }
+                    catch (OperationCanceledException) when (!ct.IsCancellationRequested) { }
+                    finally { sem.Release(); }
+                });
+                try { await Task.WhenAll(stage1Tasks).ConfigureAwait(false); }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested) { }
+            }
+            ct.ThrowIfCancellationRequested();
+            if (!stage1Passed || !_runner.IsAlive || !targets.All(t => probeResults.TryGetValue(t, out bool ok) && ok))
+            {
+                if (!_runner.IsAlive) foreach (var target in targets) probeResults[target] = false;
+                foreach (var target in targets) targetDetails[target] = targetAttempts[target].Count == 0 ? "пропущен (fail-fast отсев)" : string.Join("; ", targetAttempts[target]);
+                int passed = probeResults.Values.Count(v => v);
+                long latency = durations.Count > 0 ? durations.Max() : 0;
+                return Finish(new Canonical5ProbeResult(preset.Name, preset.ReferenceId ?? preset.Fingerprint,
+                    IsWork: false, PassCount: passed, TotalCount: targets.Count, LatencyMs: latency,
+                    Probes: probeResults, Summary: $"{passed}/{targets.Count} целей · первичный отсев; худшая задержка {latency} ms",
+                    Flows: null, TargetDetails: targetDetails));
+            }
+
+            progress.Stage("Подтверждение WORK · повторы 2/3");
+            var stage2Tasks = targets.Select(async target =>
             {
                 await sem.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
-                    ct.ThrowIfCancellationRequested();
                     bool ok = true;
-                    bool anyOk = false;
-                    var details = new List<string>();
-                    // Independent requests expose cold-connect failures hidden by a single successful retry.
-                    for (int attempt = 0; attempt < 3; attempt++)
+                    bool anyOk = hostAnyOk[target];
+                    for (int attempt = 1; attempt < 3; attempt++)
                     {
                         var timer = Stopwatch.StartNew();
-                        progress.Update($"{target} · запрос {attempt + 1}/3");
+                        progress.Update($"{target} · подтверждение {attempt + 1}/3");
                         var evidence = await _probeTarget(target, ct).ConfigureAwait(false);
                         timer.Stop();
                         lock (durations) durations.Add(Math.Max(1, timer.ElapsedMilliseconds));
                         bool stepOk = evidence.Passed == true;
-                        ok &= stepOk;
-                        anyOk |= stepOk;
-                        details.Add($"{attempt + 1}/3: {evidence.Detail} ({timer.ElapsedMilliseconds} ms)");
+                        ok &= stepOk; anyOk |= stepOk;
+                        targetAttempts[target].Add($"{attempt + 1}/3: {evidence.Detail} ({timer.ElapsedMilliseconds} ms)");
                     }
-                    lock (probeResults)
-                    {
-                        probeResults[target] = ok;
-                        hostAnyOk[target] = anyOk;
-                        targetDetails[target] = string.Join("; ", details);
-                    }
+                    lock (probeResults) { probeResults[target] = ok; hostAnyOk[target] = anyOk; }
+                    targetDetails[target] = string.Join("; ", targetAttempts[target]);
                     onHostProbed?.Invoke(target, ok);
                     return ok;
                 }
-                finally
-                {
-                    sem.Release();
-                }
+                finally { sem.Release(); }
             });
-
-            await Task.WhenAll(tasks).ConfigureAwait(false);
+            await Task.WhenAll(stage2Tasks).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
             bool engineAlive = _runner.IsAlive;
             if (!engineAlive)
@@ -207,7 +234,7 @@ public sealed class Canonical5ProbeService : IDisposable
             // and Fast Pick must never stop on that partial result.
             bool isWork = engineAlive && totalCount > 0 && passCount == totalCount;
             ApplicationFlowResult? flows = null;
-            if (engineAlive && applicationScope.HasValue)
+            if (isWork && engineAlive && applicationScope.HasValue)
             {
                 bool ytHasHtml = !targets.Any(t => t.Equals("www.youtube.com", StringComparison.OrdinalIgnoreCase))
                     || (hostAnyOk.TryGetValue("www.youtube.com", out bool ytAny) && ytAny);

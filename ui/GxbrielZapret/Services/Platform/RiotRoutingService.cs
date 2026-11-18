@@ -2,21 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
 namespace GxbrielZapret.Services.Platform;
 
 /// <summary>
-/// Ensures Riot Games / League of Legends Cloudflare authentication endpoints route
-/// to accessible, unblocked Cloudflare Anycast edge IP addresses.
-///
-/// In Russia, specific Cloudflare IPs (e.g. 104.16.57.21 for entitlements.auth.riotgames.com
-/// and 104.18.40.25 for riot-geo.pas.si.riotgames.com) are dropped or throttled by ISP TSPU.
-/// Routing them via hosts to working Cloudflare edge IPs (104.16.120.50 and 104.18.157.37)
-/// restores instant 20ms TLS handshakes with 100% valid Riot certificates, completely
-/// fixing the "<unknown player>" / black screen bug in League of Legends without
-/// requiring fragile packet-level DPI desync.
+/// Manages hosts-based routing for Blitz desktop and Let's Encrypt CRL endpoints.
+/// Riot domains intentionally use the configured DNS resolver so their CDN/Anycast
+/// addresses stay dynamic and are not pinned to an unverified edge IP.
 /// </summary>
 public static class RiotRoutingService
 {
@@ -35,41 +30,13 @@ public static class RiotRoutingService
         "# END GXBRIEL_ZAPRET - Riot Games Fix",
         "# END GXBRIEL_ZAPRET - Riot clientconfig route"
     };
+    private static readonly string[] RiotDomains =
+    {
+        "riotgames.com", "riotcdn.net", "pvp.net", "leagueoflegends.com"
+    };
 
     private static readonly (string Ip, string Domain)[] Mappings =
     {
-        // Riot Games & League of Legends — Cloudflare Anycast edge routing (fixes self-update, telemetry & auth)
-        ("104.16.120.50", "clientconfig.rpg.riotgames.com"),
-        ("104.16.120.50", "clientconfig.rpg.riotgames.com.cdn.cloudflare.net"),
-        ("104.16.120.50", "data.riotgames.com"),
-        ("104.16.120.50", "data.riotgames.com.cdn.cloudflare.net"),
-        ("104.16.120.50", "entitlements.auth.riotgames.com"),
-        ("104.16.120.50", "entitlements.auth.riotgames.com.cdn.cloudflare.net"),
-        ("104.18.157.37", "riot-geo.pas.si.riotgames.com"),
-        ("104.18.157.37", "riot-geo.pas.si.riotgames.com.cdn.cloudflare.net"),
-        ("104.16.120.50", "auth.riotgames.com"),
-        ("104.16.120.50", "auth.riotgames.com.cdn.cloudflare.net"),
-        ("104.16.120.50", "authenticate.riotgames.com"),
-        ("104.16.120.50", "authenticate.riotgames.com.cdn.cloudflare.net"),
-        ("104.16.120.50", "sieve.services.riotcdn.net"),
-        ("104.16.120.50", "sieve.services.riotcdn.net.cdn.cloudflare.net"),
-        ("104.16.120.50", "content.publishing.riotgames.com"),
-        ("104.16.120.50", "content.publishing.riotgames.com.cdn.cloudflare.net"),
-        ("104.16.120.50", "player-lifecycle-euc.publishing.riotgames.com"),
-        ("104.16.120.50", "player-lifecycle-euc.publishing.riotgames.com.cdn.cloudflare.net"),
-        ("104.16.120.50", "euw-red.lol.sgp.pvp.net"),
-        ("104.16.120.50", "euw-red.lol.sgp.pvp.net.cdn.cloudflare.net"),
-        ("104.16.120.50", "euc1-red.pp.sgp.pvp.net"),
-        ("104.16.120.50", "euc1-red.pp.sgp.pvp.net.cdn.cloudflare.net"),
-        ("104.16.120.50", "eas-prod.pp.sgp.pvp.net"),
-        ("104.16.120.50", "eas-prod.pp.sgp.pvp.net.cdn.cloudflare.net"),
-        ("104.16.120.50", "permissions.sgp.pvp.net"),
-        ("104.16.120.50", "permissions.sgp.pvp.net.cdn.cloudflare.net"),
-        ("104.16.120.50", "telemetry.sgp.pvp.net"),
-        ("104.16.120.50", "telemetry.sgp.pvp.net.cdn.cloudflare.net"),
-        ("104.16.120.50", "pft.leagueoflegends.com"),
-        ("104.16.120.50", "pft.leagueoflegends.com.cdn.cloudflare.net"),
-
         // Blitz Desktop App
         ("185.111.111.155", "blitz.gg"),
         ("185.111.111.155", "blitzapp.gg"),
@@ -100,29 +67,30 @@ public static class RiotRoutingService
     private static string HostsPath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "drivers", "etc", "hosts");
 
-    public static bool ApplyHostsFix()
+    public static bool ApplyHostsFix(string? hostsPath = null, bool flushDns = true, bool ensureVanguard = true)
     {
         try
         {
-            EnsureVanguardService();
+            if (ensureVanguard && hostsPath is null) EnsureVanguardService();
 
-            string path = HostsPath;
+            string path = hostsPath ?? HostsPath;
             if (!File.Exists(path)) return false;
 
             string content = File.ReadAllText(path, Encoding.UTF8);
             if (content.Contains(HeaderTag, StringComparison.OrdinalIgnoreCase) &&
-                content.Contains("clientconfig.rpg.riotgames.com", StringComparison.OrdinalIgnoreCase) &&
-                content.Contains("data.riotgames.com", StringComparison.OrdinalIgnoreCase) &&
-                content.Contains("sieve.services.riotcdn.net", StringComparison.OrdinalIgnoreCase) &&
+                content.Contains("blitz-desktop.blitz.gg", StringComparison.OrdinalIgnoreCase) &&
+                content.Contains("yr2.c.lencr.org", StringComparison.OrdinalIgnoreCase) &&
+                !RiotDomains.Any(domain => content.Contains(domain, StringComparison.OrdinalIgnoreCase)) &&
                 !content.Contains("api.splice.com", StringComparison.OrdinalIgnoreCase) &&
-                content.Contains("blitz-desktop.blitz.gg", StringComparison.OrdinalIgnoreCase))
+                !content.Contains("104.16.120.50", StringComparison.OrdinalIgnoreCase) &&
+                !content.Contains("104.18.157.37", StringComparison.OrdinalIgnoreCase))
             {
-                FlushDns();
+                if (flushDns) FlushDns();
                 return true;
             }
 
             // Clean up any legacy or partial block first
-            RemoveHostsFix();
+            RemoveHostsFix(path, flushDns: false);
 
             var sb = new StringBuilder();
             sb.AppendLine();
@@ -134,7 +102,7 @@ public static class RiotRoutingService
             sb.AppendLine(FooterTag);
 
             File.AppendAllText(path, sb.ToString(), Encoding.UTF8);
-            FlushDns();
+            if (flushDns) FlushDns();
             return true;
         }
         catch
@@ -167,11 +135,11 @@ public static class RiotRoutingService
         catch { }
     }
 
-    public static bool RemoveHostsFix()
+    public static bool RemoveHostsFix(string? hostsPath = null, bool flushDns = true)
     {
         try
         {
-            string path = HostsPath;
+            string path = hostsPath ?? HostsPath;
             if (!File.Exists(path)) return false;
 
             string[] lines = File.ReadAllLines(path, Encoding.UTF8);
@@ -220,7 +188,7 @@ public static class RiotRoutingService
             if (!changed) return true;
 
             File.WriteAllLines(path, filtered, Encoding.UTF8);
-            FlushDns();
+            if (flushDns) FlushDns();
             return true;
         }
         catch

@@ -21,7 +21,7 @@ public sealed class FullScanServiceVerificationTests : IDisposable
             new(gateway, "gateway evidence"));
 
     [Fact]
-    public async Task DiscordTransportFailureStillMeasuresYouTubeForEveryRepeat()
+    public async Task DiscordTransportFailureSkipsExpensiveApplicationFlow()
     {
         int samples = 0;
         using var service = new Canonical5ProbeService(new FakeRunner(),
@@ -29,9 +29,8 @@ public sealed class FullScanServiceVerificationTests : IDisposable
             (_, _) => { samples++; return Task.FromResult(Flows()); });
         var result = await service.EvaluateCandidateAsync(ReferenceStrategyCatalog.All[0].ToPreset(), null,
             CancellationToken.None, targets: AutoScope.Both.GoalHosts());
-        Assert.Equal(3, samples);
-        Assert.NotNull(result.Flows);
-        Assert.True(result.Flows.YouTubeVideo.Passed);
+        Assert.Equal(0, samples);
+        Assert.Null(result.Flows);
         Assert.False(result.IsWork);
     }
 
@@ -215,7 +214,7 @@ public sealed class FullScanServiceVerificationTests : IDisposable
     }
 
     [Fact]
-    public async Task InitialFailureCannotBeHiddenByTwoSuccessfulRepeats()
+    public async Task InitialFailureFailsFastWithoutHeavyFlowProbe()
     {
         int calls = 0, flowCalls = 0;
         var runner = new FakeRunner();
@@ -224,11 +223,25 @@ public sealed class FullScanServiceVerificationTests : IDisposable
             (_, _) => { flowCalls++; return Task.FromResult(Flows()); });
         var result = await service.EvaluateCandidateAsync(ReferenceStrategyCatalog.All[0].ToPreset(), null,
             CancellationToken.None, targets: new[] { "www.youtube.com" });
-        Assert.Equal(3, calls);
-        Assert.Equal(3, flowCalls);
+        Assert.Equal(1, calls);
+        Assert.Equal(0, flowCalls);
         Assert.False(result.IsWork);
         Assert.False(runner.IsAlive);
         Assert.Contains("1/3", result.TargetDetails!["www.youtube.com"]);
+    }
+
+    [Fact]
+    public async Task Stage2RepeatFailureSkipsHeavyFlowProbe()
+    {
+        int calls = 0, flowCalls = 0;
+        using var service = new Canonical5ProbeService(new FakeRunner(),
+            (_, _) => Task.FromResult(++calls != 2),
+            (_, _) => { flowCalls++; return Task.FromResult(Flows()); });
+        var result = await service.EvaluateCandidateAsync(ReferenceStrategyCatalog.All[0].ToPreset(), null,
+            CancellationToken.None, targets: new[] { "www.youtube.com" });
+        Assert.Equal(3, calls);
+        Assert.Equal(0, flowCalls);
+        Assert.False(result.IsWork);
     }
 
     [Fact]
