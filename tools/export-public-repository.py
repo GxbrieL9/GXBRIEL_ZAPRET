@@ -6,6 +6,9 @@ root = Path(__file__).resolve().parent.parent
 destination = Path(sys.argv[1]).resolve() if len(sys.argv)>1 else root/"artifacts/github-public"
 if destination == root or root.is_relative_to(destination): raise SystemExit("Недопустимый каталог публичной копии")
 destination.mkdir(parents=True,exist_ok=True)
+for unwanted in list(destination.rglob('*')):
+    if unwanted.is_dir() and unwanted.name in {'bin','obj','TestResults','__pycache__'}:
+        shutil.rmtree(unwanted,ignore_errors=True)
 def copy(path):
     relative = path.relative_to(root)
     target = destination/relative; target.parent.mkdir(parents=True,exist_ok=True); shutil.copyfile(path,target)
@@ -37,7 +40,7 @@ for name in ['list-user.txt','list-exclude-user.txt']:(lists/name).write_text('#
 (destination/'.gitignore').write_text('**/bin/\n**/obj/\nartifacts/\n.vs/\n.vscode/\n.serena/\n*.user\n*.log\n*.tmp\n*.previous-*\n*-private.pem\n.env*\n',encoding='utf8')
 inventory=[]
 for path in destination.rglob('*'):
-    if not path.is_file() or '.git' in path.relative_to(destination).parts:continue
+    if not path.is_file() or any(p in {'.git','bin','obj','TestResults','__pycache__'} for p in path.relative_to(destination).parts): continue
     relative=path.relative_to(destination).as_posix();data=path.read_bytes()
     if path.suffix.lower() in {'.cs','.json','.md','.ps1','.py','.yml','.txt','.pem'}:
         text=data.decode('utf8',errors='replace')
