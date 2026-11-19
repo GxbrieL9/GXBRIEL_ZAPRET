@@ -124,12 +124,13 @@ public sealed class FullScanServiceVerificationTests : IDisposable
         Assert.Equal(expected, Canonical5ProbeService.IsExpectedTargetResponse(host, code));
 
     [Fact]
-    public void RiotGoalHostsInfersRiotScope()
+    public void RiotGoalHostsExcludedFromAutoScope_WorkIsExclusivelyDiscordAndYouTube()
     {
-        var hosts = AutoScope.Riot.GoalHosts();
+        var hosts = AutoScope.Both.GoalHosts();
         Assert.DoesNotContain("clientconfig.rdevs.com", hosts);
-        Assert.Contains("clientconfig.rpg.riotgames.com", hosts);
-        Assert.Equal(AutoScope.Riot, Canonical5ProbeService.ScopeForTargets(hosts));
+        Assert.DoesNotContain("clientconfig.rpg.riotgames.com", hosts);
+        Assert.DoesNotContain("bacon.secure.dyn.riotcdn.net", hosts);
+        Assert.Equal(AutoScope.Both, Canonical5ProbeService.ScopeForTargets(hosts));
     }
 
     [Fact]
@@ -234,15 +235,29 @@ public sealed class FullScanServiceVerificationTests : IDisposable
         int calls = 0, flowCalls = 0;
         var runner = new FakeRunner();
         using var service = new Canonical5ProbeService(runner,
-            (_, _) => Task.FromResult(++calls != 1),
+            (_, _) => { calls++; return Task.FromResult(false); },
             (_, _) => { flowCalls++; return Task.FromResult(Flows()); });
         var result = await service.EvaluateCandidateAsync(ReferenceStrategyCatalog.All[0].ToPreset(), null,
             CancellationToken.None, targets: new[] { "www.youtube.com" });
-        Assert.Equal(1, calls);
+        Assert.Equal(2, calls); // 1 initial probe + 1 cheap retry before confirming failure
         Assert.Equal(0, flowCalls);
         Assert.False(result.IsWork);
         Assert.False(runner.IsAlive);
         Assert.Contains("1/3", result.TargetDetails!["www.youtube.com"]);
+    }
+
+    [Fact]
+    public async Task TransientFailureRecoveredByRetryDoesNotMarkBrokenImmediately()
+    {
+        int calls = 0, flowCalls = 0;
+        var runner = new FakeRunner();
+        using var service = new Canonical5ProbeService(runner,
+            (_, _) => Task.FromResult(++calls > 1), // 1st probe fails, retry passes
+            (_, _) => { flowCalls++; return Task.FromResult(Flows()); });
+        var result = await service.EvaluateCandidateAsync(ReferenceStrategyCatalog.All[0].ToPreset(), null,
+            CancellationToken.None, targets: new[] { "www.youtube.com" });
+        Assert.True(result.IsWork);
+        Assert.True(flowCalls > 0);
     }
 
     [Fact]
