@@ -9,12 +9,33 @@ namespace GxbrielZapret.Tests;
 public sealed class AntigravityProxyTests
 {
     [Fact]
-    public void SavedEnvironmentOverridesStaleProcessAndFallsBackWhenAbsent()
+    public void ScopedOverrideTakesPrecedenceOverUserAndMachineAndFallsBackWhenAbsent()
     {
-        Assert.Equal("http://user:80", AntigravityProxy.Resolve("http://stale:80", "http://user:80", "http://machine:80"));
-        Assert.Equal("http://machine:80", AntigravityProxy.Resolve("http://stale:80", " ", "http://machine:80"));
-        Assert.Equal("http://process:80", AntigravityProxy.Resolve(" http://process:80 ", null, null));
+        Assert.Equal("http://scoped:80", AntigravityProxy.Resolve("http://scoped:80", "http://user:80", "http://machine:80"));
+        Assert.Equal("http://user:80", AntigravityProxy.Resolve(null, "http://user:80", "http://machine:80"));
+        Assert.Equal("http://machine:80", AntigravityProxy.Resolve(null, " ", "http://machine:80"));
+        Assert.Equal("http://process:80", AntigravityProxy.Resolve(null, null, null, " http://process:80 "));
         Assert.Null(AntigravityProxy.Resolve(null, "", " "));
+
+        var resScoped = AntigravityProxy.ResolveDetailed("http://scoped:80", "http://user:80", "http://machine:80");
+        Assert.Equal(AntigravityProxySource.Scoped, resScoped.Source);
+        Assert.Equal("http://scoped:80", resScoped.Value);
+
+        var resUser = AntigravityProxy.ResolveDetailed(null, "http://user:80", "http://machine:80");
+        Assert.Equal(AntigravityProxySource.User, resUser.Source);
+        Assert.Equal("http://user:80", resUser.Value);
+
+        var resMachine = AntigravityProxy.ResolveDetailed(null, null, "http://machine:80");
+        Assert.Equal(AntigravityProxySource.Machine, resMachine.Source);
+        Assert.Equal("http://machine:80", resMachine.Value);
+
+        var resProcess = AntigravityProxy.ResolveDetailed(null, null, null, "http://process:80");
+        Assert.Equal(AntigravityProxySource.Process, resProcess.Source);
+        Assert.Equal("http://process:80", resProcess.Value);
+
+        var resNone = AntigravityProxy.ResolveDetailed(null, null, null, null);
+        Assert.Equal(AntigravityProxySource.None, resNone.Source);
+        Assert.Null(resNone.Value);
     }
 
     [Theory]
