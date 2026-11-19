@@ -21,8 +21,19 @@ public sealed partial class MainViewModel
 
     private void InitializePatcherProxyCommands()
     {
-        string? existing = AntigravityProxy.Read();
-        if (!string.IsNullOrWhiteSpace(existing)) _patcherProxyInput = existing;
+        try
+        {
+            AntigravityProxyManager.SanitizeUserEnvironment(Settings, () => _settingsSvc.Save());
+        }
+        catch (AntigravityCredentialException ex)
+        {
+            PatcherProxyStatus = ex.Message;
+        }
+
+        string? existing = !string.IsNullOrWhiteSpace(Settings.AntigravityProxy)
+            ? Settings.AntigravityProxy
+            : AntigravityProxy.Read();
+        if (!string.IsNullOrWhiteSpace(existing)) _patcherProxyInput = AntigravityProxy.Redact(existing);
 
         SavePatcherProxyCommand = new RelayCommand(_ =>
         {
@@ -31,17 +42,16 @@ public sealed partial class MainViewModel
                 string value = PatcherProxyInput.Trim();
                 if (value.Length == 0) { PatcherProxyStatus = "Введите адрес прокси. Существующие настройки не изменены."; return; }
                 AntigravityProxy.Parse(value);
-                Environment.SetEnvironmentVariable("AG_LS_PROXY", value, EnvironmentVariableTarget.User);
-                Environment.SetEnvironmentVariable("AG_LS_PROXY", value);
-                Settings.AntigravityProxy = value;
+                Settings.SetAntigravityProxy(value);
                 Settings.AntigravityUseProxy = true;
                 _settingsSvc.Save();
                 PatcherDirectConnection = false;
-                PatcherProxyInput = "";
-                PatcherProxyStatus = AntigravityProxyDiagnostic.Read() + " Сохранено для запуска из GX. Перезапустите Antigravity кнопкой GX для применения.";
+                PatcherProxyInput = Settings.AntigravityProxy;
+                PatcherProxyStatus = AntigravityProxyDiagnostic.Read(Settings.AntigravityProxy) + " Сохранено для запуска из GX. Перезапустите Antigravity кнопкой GX для применения.";
             }
             catch (ArgumentException ex) { PatcherProxyStatus = ex.Message; }
-            catch { PatcherProxyStatus = "Не удалось сохранить AG_LS_PROXY в окружении пользователя Windows."; }
+            catch (AntigravityCredentialException ex) { PatcherProxyStatus = ex.Message; }
+            catch { PatcherProxyStatus = "Не удалось сохранить настройки прокси для Antigravity."; }
         }, _ => CanEditPatcherProxy);
 
         ClearPatcherProxyCommand = new RelayCommand(_ =>
@@ -51,6 +61,7 @@ public sealed partial class MainViewModel
                 Environment.SetEnvironmentVariable("AG_LS_PROXY", null, EnvironmentVariableTarget.User);
                 Environment.SetEnvironmentVariable("AG_LS_PROXY", null);
                 Settings.AntigravityProxy = "";
+                Settings.AntigravityProxyProtectedCredentials = null;
                 Settings.AntigravityUseProxy = false;
                 _settingsSvc.Save();
                 PatcherProxyInput = "";
@@ -86,7 +97,27 @@ public sealed partial class MainViewModel
             _patcherCts = new();
             try
             {
-                string? value = string.IsNullOrWhiteSpace(PatcherProxyInput) ? AntigravityProxy.Read() : PatcherProxyInput.Trim();
+                string? value = null;
+                if (!string.IsNullOrWhiteSpace(PatcherProxyInput))
+                {
+                    string input = PatcherProxyInput.Trim();
+                    if (string.Equals(input, Settings.AntigravityProxy, StringComparison.OrdinalIgnoreCase) &&
+                        !string.IsNullOrEmpty(Settings.AntigravityProxyProtectedCredentials))
+                    {
+                        value = Settings.GetEffectiveAntigravityProxy();
+                    }
+                    else
+                    {
+                        value = input;
+                    }
+                }
+                else
+                {
+                    value = Settings.AntigravityUseProxy
+                        ? Settings.GetEffectiveAntigravityProxy()
+                        : AntigravityProxy.Read();
+                }
+
                 if (string.IsNullOrWhiteSpace(value)) { PatcherProxyStatus = "Сначала укажите адрес прокси."; return; }
                 PatcherProxyStatus = "Проверяю HTTPS к Google через указанный прокси…";
                 var (success, message) = await AntigravityProxyManager.TestProxyAsync(value, _patcherCts.Token);
