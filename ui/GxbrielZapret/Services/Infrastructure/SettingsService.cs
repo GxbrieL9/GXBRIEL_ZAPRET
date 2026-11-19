@@ -62,8 +62,41 @@ public sealed class AppSettings
     public bool AntigravityAutoPatchEnabled { get; set; } = true;
     public bool AntigravityDirectConnection { get; set; }
     public string AntigravityProxy { get; set; } = "";
+    public string? AntigravityProxyProtectedCredentials { get; set; }
     public bool AntigravityUseProxy { get; set; }
     public bool AntigravityBuiltinRouting { get; set; }
+
+    public string GetEffectiveAntigravityProxy()
+    {
+        if (string.IsNullOrWhiteSpace(AntigravityProxy)) return "";
+        string? userInfo = Platform.AntigravityProxyCredentialStore.Unprotect(AntigravityProxyProtectedCredentials);
+        return Platform.AntigravityProxy.Combine(AntigravityProxy, userInfo);
+    }
+
+    public void SetAntigravityProxy(string rawProxyUrl)
+    {
+        if (string.IsNullOrWhiteSpace(rawProxyUrl))
+        {
+            AntigravityProxy = "";
+            AntigravityProxyProtectedCredentials = null;
+            return;
+        }
+        var (redacted, userInfo) = Platform.AntigravityProxy.SplitCredentials(rawProxyUrl);
+        if (userInfo is not null)
+        {
+            string cipher = Platform.AntigravityProxyCredentialStore.Protect(userInfo);
+            AntigravityProxy = redacted;
+            AntigravityProxyProtectedCredentials = cipher;
+        }
+        else
+        {
+            if (!string.Equals(redacted, AntigravityProxy, StringComparison.OrdinalIgnoreCase))
+            {
+                AntigravityProxyProtectedCredentials = null;
+            }
+            AntigravityProxy = redacted;
+        }
+    }
 
     /// <summary>Background watchdog: silently re-pick a strategy if the bypass stops working. Enabled by default for automatic failover.</summary>
     public bool AutoHeal { get; set; } = true;
@@ -201,6 +234,7 @@ public sealed class SettingsService
                 AppPaths.EnsureCreated();
                 Settings.SchemaVersion = CurrentSchemaVersion;
                 RotateBackups(AppPaths.SettingsFile);
+                SanitizeBackups();
                 tmp = AppPaths.SettingsFile + $".{Guid.NewGuid():N}.tmp";
                 using (var stream = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                 {
@@ -208,6 +242,7 @@ public sealed class SettingsService
                     stream.Flush(true);
                 }
                 File.Move(tmp, AppPaths.SettingsFile, overwrite: true);
+                SanitizeBackups();
                 LastSaveError = null;
                 saved = true;
             }
@@ -280,12 +315,20 @@ public sealed class SettingsService
                     Save();
             }
         }
+        catch (Platform.AntigravityCredentialException ex)
+        {
+            // Fail closed on DPAPI protection failure during migration:
+            // Do NOT overwrite settings file, do NOT strip credentials, surface visible error
+            LastSaveError = ex.Message;
+            SaveStatusChanged?.Invoke(LastSaveError);
+        }
         catch
         {
             AppSettings? backupSettings = TryLoadBackup();
             bool recoveredFromBackup = backupSettings != null;
             Settings = backupSettings ?? new AppSettings();
-            bool migrated = MigrateInMemory(Settings);
+            bool migrated = false;
+            try { migrated = MigrateInMemory(Settings); } catch { }
             try
             {
                 string corrupt = Path.Combine(AppPaths.BackupsDir, $"settings-corrupt-{DateTime.Now:yyyyMMddHHmmss}.json");
@@ -349,6 +392,20 @@ public sealed class SettingsService
             changed = true;
         }
 
+        if (!string.IsNullOrWhiteSpace(settings.AntigravityProxy) && Platform.AntigravityProxy.ContainsCredentials(settings.AntigravityProxy))
+        {
+            var (redacted, userInfo) = Platform.AntigravityProxy.SplitCredentials(settings.AntigravityProxy);
+            if (!string.IsNullOrEmpty(userInfo))
+            {
+                // Protect throws AntigravityCredentialException on DPAPI failure.
+                // Do not catch and strip credentials silently: let it throw so Load() fails closed without saving!
+                string cipher = Platform.AntigravityProxyCredentialStore.Protect(userInfo);
+                settings.AntigravityProxy = redacted;
+                settings.AntigravityProxyProtectedCredentials = cipher;
+                changed = true;
+            }
+        }
+
         if (IsLegacyAbsolutePath(settings.ActiveHostlist))
         {
             settings.ActiveHostlist = null;
@@ -397,7 +454,53 @@ public sealed class SettingsService
                 string older = BackupPath(path, i);
                 if (File.Exists(newer)) File.Copy(newer, older, overwrite: true);
             }
-            File.Copy(path, BackupPath(path, 1), overwrite: true);
+            string bak1 = BackupPath(path, 1);
+            File.Copy(path, bak1, overwrite: true);
+            SanitizeBackupFile(bak1);
+        }
+        catch { }
+    }
+
+    private static void SanitizeBackupFile(string path)
+    {
+        try
+        {
+            if (!File.Exists(path)) return;
+            string json = File.ReadAllText(path);
+            var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOpts);
+            if (loaded is not null && !string.IsNullOrWhiteSpace(loaded.AntigravityProxy) && Platform.AntigravityProxy.ContainsCredentials(loaded.AntigravityProxy))
+            {
+                try
+                {
+                    var (redacted, userInfo) = Platform.AntigravityProxy.SplitCredentials(loaded.AntigravityProxy);
+                    if (!string.IsNullOrEmpty(userInfo))
+                    {
+                        string cipher = Platform.AntigravityProxyCredentialStore.Protect(userInfo);
+                        loaded.AntigravityProxy = redacted;
+                        loaded.AntigravityProxyProtectedCredentials = cipher;
+                    }
+                }
+                catch
+                {
+                    loaded.AntigravityProxy = Platform.AntigravityProxy.Redact(loaded.AntigravityProxy);
+                    loaded.AntigravityProxyProtectedCredentials = null;
+                }
+                File.WriteAllText(path, JsonSerializer.Serialize(loaded, JsonOpts));
+            }
+        }
+        catch { }
+    }
+
+    internal static void SanitizeBackups()
+    {
+        try
+        {
+            if (!Directory.Exists(AppPaths.BackupsDir)) return;
+            for (int i = 1; i <= MaxBackups; i++)
+            {
+                string path = BackupPath(AppPaths.SettingsFile, i);
+                SanitizeBackupFile(path);
+            }
         }
         catch { }
     }
