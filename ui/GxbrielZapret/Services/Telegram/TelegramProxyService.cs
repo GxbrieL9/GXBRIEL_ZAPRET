@@ -8,6 +8,15 @@ using GxbrielZapret.Services.Network;
 
 namespace GxbrielZapret.Services.Telegram;
 
+public enum TelegramProxyHealthState
+{
+    Stopped,
+    LocalListening,
+    CheckingUpstream,
+    BridgeVerified,
+    Failed
+}
+
 /// <summary>
 /// Built-in local Telegram MTProto → WebSocket proxy (native C# port of Flowseal/tg-ws-proxy, MIT).
 /// Telegram Desktop connects to it as an MTProto proxy on 127.0.0.1; the service relays each
@@ -19,6 +28,7 @@ namespace GxbrielZapret.Services.Telegram;
 /// </summary>
 public sealed class TelegramProxyService : IDisposable
 {
+    public TelegramProxyHealthState HealthState { get; private set; } = TelegramProxyHealthState.Stopped;
     private const int MaxUpstreamAttempts = 6;
 
     // Attempts held back from the first upstream step so the fallback always gets a turn (the direct
@@ -70,6 +80,8 @@ public sealed class TelegramProxyService : IDisposable
 
     /// <summary>Raised for user-facing log lines (subscriber marshals to the UI thread).</summary>
     public event Action<string>? LogLine;
+
+    public void RaiseLogLine(string line) => LogLine?.Invoke(line);
 
     /// <summary>Verbose journal, driven by the same switch as the engine's. Telegram Desktop keeps
     /// several connections open at once and re-opens them on every network hiccup, so a line per
@@ -220,6 +232,7 @@ public sealed class TelegramProxyService : IDisposable
 
         _listener = listener;
         IsRunning = true;
+        HealthState = TelegramProxyHealthState.LocalListening;
         _cts = new CancellationTokenSource();
         _loggedFirstSuccess = false;
 
@@ -234,6 +247,7 @@ public sealed class TelegramProxyService : IDisposable
     {
         if (!IsRunning) return;
         IsRunning = false;
+        HealthState = TelegramProxyHealthState.Stopped;
         try { _cts?.Cancel(); } catch { /* ignore */ }
         try { _cts?.Dispose(); } catch { /* ignore */ }
         _cts = null;
@@ -476,8 +490,11 @@ public sealed class TelegramProxyService : IDisposable
     {
         WsStage.Tcp => Loc.T("TCP не открылся (таймаут / блок IP)"),
         WsStage.Tls => Loc.T("TLS оборван (DPI по SNI?)"),
-        WsStage.Upgrade => Loc.T("WebSocket-ответ {0}, не 101", r.Status),
-        _ => Loc.T("ошибка"),
+        WsStage.TlsCert => Loc.T("TLS сертификат не прошёл проверку: {0}", r.ErrorMessage ?? "недействительный сертификат"),
+        WsStage.Upgrade => r.ErrorMessage != null
+            ? Loc.T("WebSocket Upgrade ошибка: {0}", r.ErrorMessage)
+            : Loc.T("WebSocket-ответ {0}, не 101", r.Status),
+        _ => Loc.T("ошибка: {0}", r.ErrorMessage ?? "неизвестно"),
     };
 
     private static async Task<string?> TryOsResolveAsync(string host, CancellationToken ct)
@@ -497,8 +514,18 @@ public sealed class TelegramProxyService : IDisposable
     /// returns a short verdict for the card. Needs no admin and is independent of the local listener.</summary>
     public async Task<string> SelfTestAsync(CancellationToken ct = default)
     {
+        var report = await DetailedDiagnosticCheckAsync(ct);
+        return report.Summary;
+    }
+
+    /// <summary>Full structured diagnostics of Telegram network connectivity across all layers:
+    /// DNS (DoH/OS) -> TCP -> TLS -> WebSocket Upgrade (101 + accept) -> MTProto resPQ.
+    /// Safe to log or send to developers (no secrets, tokens or personal info).</summary>
+    public async Task<TelegramDiagnosticsReport> DetailedDiagnosticCheckAsync(CancellationToken ct = default)
+    {
         LogLine?.Invoke(Loc.T("[tg-proxy] ── проверка апстримов Telegram (DNS, прямой IP, Cloudflare-фронты) ──"));
         var timeout = TimeSpan.FromSeconds(5);
+        var report = new TelegramDiagnosticsReport();
         int okCount = 0;
         int failCount = 0;
 
@@ -523,19 +550,40 @@ public sealed class TelegramProxyService : IDisposable
         // 2. Check Direct DC IP (DC2 / DC4)
         foreach (var (dc, ip) in TgProxyProto.DcRedirects)
         {
+            var step = new TelegramProbeStep
+            {
+                TargetName = $"Direct DC{dc}",
+                Dc = dc,
+                Lane = "chat",
+                DnsSource = "Direct IP",
+                AttemptedEndpoint = $"{ip}:443"
+            };
+            report.Steps.Add(step);
+
             string domain = $"kws{dc}.web.telegram.org";
+            long start = Environment.TickCount64;
             var r = await TgWebSocket.ConnectAsync(ip, domain, timeout, sni: domain, ct: ct);
+            step.LatencyMs = Environment.TickCount64 - start;
+
             if (r.Ok)
             {
+                step.TcpOk = true;
+                step.TlsOk = true;
+                step.WsOk = true;
+                step.WsStatus = r.Status;
+
                 bool relayOk = await TgProxyProto.ProbeRelayAsync(r.Ws!, dc, ct);
+                step.MtProtoResPqOk = relayOk;
                 if (relayOk)
                 {
                     okCount++;
+                    step.OutcomeSummary = "OK (WS 101 + MTProto resPQ)";
                     LogLine?.Invoke(Loc.T("[tg-proxy] Прямой IP DC{0} ({1}): WebSocket 101 + MTProto OK", dc, ip));
                 }
                 else
                 {
                     failCount++;
+                    step.OutcomeSummary = "WS 101 OK, но Telegram не ответил resPQ";
                     LogLine?.Invoke(Loc.T("[tg-proxy] Прямой IP DC{0} ({1}): WebSocket открылся, но Telegram не ответил", dc, ip));
                 }
                 await r.Ws!.CloseAsync();
@@ -543,6 +591,33 @@ public sealed class TelegramProxyService : IDisposable
             else
             {
                 failCount++;
+                step.WsStatus = r.Status;
+                step.WsError = r.ErrorMessage;
+                switch (r.Stage)
+                {
+                    case WsStage.Tcp:
+                        step.TcpOk = false;
+                        step.OutcomeSummary = "TCP Timeout/Blocked";
+                        break;
+                    case WsStage.Tls:
+                        step.TcpOk = true;
+                        step.TlsOk = false;
+                        step.TlsError = r.ErrorMessage ?? "TLS handshake failed";
+                        step.OutcomeSummary = "TLS handshake failed";
+                        break;
+                    case WsStage.TlsCert:
+                        step.TcpOk = true;
+                        step.TlsOk = false;
+                        step.TlsError = r.ErrorMessage ?? "Invalid certificate";
+                        step.OutcomeSummary = "TLS Certificate invalid";
+                        break;
+                    case WsStage.Upgrade:
+                        step.TcpOk = true;
+                        step.TlsOk = true;
+                        step.WsOk = false;
+                        step.OutcomeSummary = $"WebSocket Upgrade failed ({r.Status})";
+                        break;
+                }
                 LogLine?.Invoke(Loc.T("[tg-proxy] Прямой IP DC{0} ({1}): {2}", dc, ip, StageText(r)));
             }
         }
@@ -552,27 +627,63 @@ public sealed class TelegramProxyService : IDisposable
         foreach (var baseDomain in fronts)
         {
             string domain = $"kws2.{baseDomain}";
-            string[] dohIps = await _doh.ResolveAsync(domain, ct);
-            string host = dohIps.Length > 0 ? dohIps[0] : (await TryOsResolveAsync(domain, ct) ?? "");
-            if (string.IsNullOrEmpty(host))
+            var step = new TelegramProbeStep
             {
-                failCount++;
-                LogLine?.Invoke(Loc.T("[tg-proxy] Фронт {0}: DNS не резолвится", domain));
-                continue;
+                TargetName = $"CF Front ({baseDomain})",
+                Dc = 2,
+                Lane = "chat",
+                AttemptedEndpoint = domain
+            };
+            report.Steps.Add(step);
+
+            string[] dohIps = await _doh.ResolveAsync(domain, ct);
+            string host;
+            if (dohIps.Length > 0)
+            {
+                host = dohIps[0];
+                step.DnsSource = "DoH";
+                step.AttemptedEndpoint = $"{host}:443 ({domain})";
+            }
+            else
+            {
+                string? osIp = await TryOsResolveAsync(domain, ct);
+                if (string.IsNullOrEmpty(osIp))
+                {
+                    failCount++;
+                    step.DnsOk = false;
+                    step.DnsError = "Domain not resolved";
+                    step.OutcomeSummary = "DNS lookup failed";
+                    LogLine?.Invoke(Loc.T("[tg-proxy] Фронт {0}: DNS не резолвится", domain));
+                    continue;
+                }
+                host = osIp;
+                step.DnsSource = "OS DNS";
+                step.AttemptedEndpoint = $"{host}:443 ({domain})";
             }
 
+            long start = Environment.TickCount64;
             var r = await TgWebSocket.ConnectAsync(host, domain, timeout, sni: domain, ct: ct);
+            step.LatencyMs = Environment.TickCount64 - start;
+
             if (r.Ok)
             {
+                step.TcpOk = true;
+                step.TlsOk = true;
+                step.WsOk = true;
+                step.WsStatus = r.Status;
+
                 bool relayOk = await TgProxyProto.ProbeRelayAsync(r.Ws!, 2, ct);
+                step.MtProtoResPqOk = relayOk;
                 if (relayOk)
                 {
                     okCount++;
+                    step.OutcomeSummary = "OK (WS 101 + MTProto resPQ)";
                     LogLine?.Invoke(Loc.T("[tg-proxy] Фронт {0} ({1}): WebSocket 101 + MTProto OK", domain, host));
                 }
                 else
                 {
                     failCount++;
+                    step.OutcomeSummary = "WS 101 OK, но Telegram не ответил resPQ";
                     LogLine?.Invoke(Loc.T("[tg-proxy] Фронт {0} ({1}): WebSocket открылся, но Telegram не ответил", domain, host));
                 }
                 await r.Ws!.CloseAsync();
@@ -580,6 +691,33 @@ public sealed class TelegramProxyService : IDisposable
             else
             {
                 failCount++;
+                step.WsStatus = r.Status;
+                step.WsError = r.ErrorMessage;
+                switch (r.Stage)
+                {
+                    case WsStage.Tcp:
+                        step.TcpOk = false;
+                        step.OutcomeSummary = "TCP Timeout/Blocked";
+                        break;
+                    case WsStage.Tls:
+                        step.TcpOk = true;
+                        step.TlsOk = false;
+                        step.TlsError = r.ErrorMessage ?? "TLS handshake failed";
+                        step.OutcomeSummary = "TLS handshake failed";
+                        break;
+                    case WsStage.TlsCert:
+                        step.TcpOk = true;
+                        step.TlsOk = false;
+                        step.TlsError = r.ErrorMessage ?? "Invalid certificate";
+                        step.OutcomeSummary = "TLS Certificate invalid";
+                        break;
+                    case WsStage.Upgrade:
+                        step.TcpOk = true;
+                        step.TlsOk = true;
+                        step.WsOk = false;
+                        step.OutcomeSummary = $"WebSocket Upgrade failed ({r.Status})";
+                        break;
+                }
                 LogLine?.Invoke(Loc.T("[tg-proxy] Фронт {0} ({1}): {2}", domain, host, StageText(r)));
             }
         }
@@ -588,20 +726,56 @@ public sealed class TelegramProxyService : IDisposable
         if (IsRunning)
         {
             string chatVerdict = await BridgeSelfTestAsync(2, ct);
-            if (!chatVerdict.Contains("МОСТ OK", StringComparison.OrdinalIgnoreCase))
-                return chatVerdict;
+            bool chatOk = chatVerdict.Contains("МОСТ OK", StringComparison.OrdinalIgnoreCase);
+            report.Steps.Add(new TelegramProbeStep
+            {
+                TargetName = "Local Loopback Bridge",
+                Dc = 2,
+                Lane = "chat",
+                DnsSource = "Loopback",
+                AttemptedEndpoint = $"127.0.0.1:{Port}",
+                TcpOk = true,
+                TlsOk = true,
+                WsOk = true,
+                MtProtoResPqOk = chatOk,
+                OutcomeSummary = chatVerdict
+            });
+
+            if (!chatOk)
+            {
+                report.OverallOk = false;
+                report.Summary = chatVerdict;
+                return report;
+            }
 
             string mediaVerdict = await BridgeSelfTestAsync(-2, ct);
-            if (!mediaVerdict.Contains("МОСТ OK", StringComparison.OrdinalIgnoreCase))
-                return Loc.T("{0}; медиа: {1}", chatVerdict, mediaVerdict);
+            bool mediaOk = mediaVerdict.Contains("МОСТ OK", StringComparison.OrdinalIgnoreCase);
+            report.Steps.Add(new TelegramProbeStep
+            {
+                TargetName = "Local Loopback Bridge",
+                Dc = -2,
+                Lane = "media",
+                DnsSource = "Loopback",
+                AttemptedEndpoint = $"127.0.0.1:{Port}",
+                TcpOk = true,
+                TlsOk = true,
+                WsOk = true,
+                MtProtoResPqOk = mediaOk,
+                OutcomeSummary = mediaVerdict
+            });
 
-            return Loc.T("{0}; медиа тоже OK", chatVerdict);
+            report.OverallOk = chatOk && mediaOk;
+            report.Summary = mediaOk
+                ? Loc.T("{0}; медиа тоже OK", chatVerdict)
+                : Loc.T("{0}; медиа: {1}", chatVerdict, mediaVerdict);
+            return report;
         }
 
-        string summary = okCount > 0
+        report.OverallOk = okCount > 0;
+        report.Summary = okCount > 0
             ? Loc.T("Проверка завершена: {0} узлов доступно, {1} заблокировано. Прокси готов к работе.", okCount, failCount)
             : Loc.T("Все проверенные узлы недоступны ({0} ошибок). Проверьте интернет-соединение или настройки DPI.", failCount);
-        return summary;
+        return report;
     }
 
     /// <summary>Bidirectional relay with re-encryption: client bytes are decrypted with the client
@@ -743,6 +917,11 @@ public sealed class TelegramProxyService : IDisposable
                     if (data is null) { EndedBy(Loc.T("Telegram закрыл канал")); break; }
                     if (Interlocked.Exchange(ref tgResponded, 1) == 0)
                     {
+                        if (HealthState != TelegramProxyHealthState.BridgeVerified)
+                        {
+                            HealthState = TelegramProxyHealthState.BridgeVerified;
+                            StateChanged?.Invoke();
+                        }
                         long spoke = Volatile.Read(ref clientSpokeAt);
                         long ttfb = spoke > 0 ? Environment.TickCount64 - spoke : 0;
                         LogDetail(Loc.T("[tg-proxy] #{0} DC{1}: трафик пошёл (TTFB: {2} мс)", id, dc, ttfb));
