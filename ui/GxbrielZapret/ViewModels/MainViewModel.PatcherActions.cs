@@ -101,7 +101,7 @@ public sealed partial class MainViewModel
             }
             _patcherCts.Token.ThrowIfCancellationRequested();
             string? proxyToUse = Settings.AntigravityUseProxy && !string.IsNullOrWhiteSpace(Settings.AntigravityProxy)
-                ? Settings.AntigravityProxy
+                ? Settings.GetEffectiveAntigravityProxy()
                 : null;
             if (!closeOnly && Settings.AntigravityBuiltinRouting && !Settings.AntigravityDirectConnection)
                 proxyToUse = _antigravityRelay.Start();
@@ -111,7 +111,7 @@ public sealed partial class MainViewModel
             if (!closeOnly && Settings.AntigravityBuiltinRouting && !Settings.AntigravityDirectConnection) PatcherStatusMessage += " Применён встроенный маршрут GX. Оставьте GX запущенным в трее.";
             else if (!closeOnly && proxyToUse is not null && !Settings.AntigravityDirectConnection) PatcherStatusMessage += " Настроенный прокси передан в AG_LS_PROXY / HTTPS_PROXY. Адрес и учётные данные скрыты.";
             else if (!closeOnly && Settings.AntigravityDirectConnection) PatcherStatusMessage += " Режим без AG_LS_PROXY применён к новому процессу.";
-            else if (!closeOnly) PatcherStatusMessage += " " + AntigravityProxyDiagnostic.Read() + " Если Antigravity уже был открыт, используйте перезапуск для применения окружения.";
+            else if (!closeOnly) PatcherStatusMessage += " " + AntigravityProxyDiagnostic.Read(Settings.AntigravityProxy) + " Если Antigravity уже был открыт, используйте перезапуск для применения окружения.";
             AppendPatcherLog(PatcherStatusMessage);
         }
         catch (OperationCanceledException) { PatcherStatusMessage = "Операция остановлена. Принудительное завершение процессов не выполнялось."; }
