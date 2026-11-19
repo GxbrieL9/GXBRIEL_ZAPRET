@@ -2,17 +2,18 @@
 using System.IO;
 using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Text;
 
 namespace GxbrielZapret.Services.Telegram;
 
 /// <summary>Which phase of the upstream WebSocket connect failed, so the proxy can log a human cause
 /// (TCP vs TLS vs WS-upgrade) instead of a bare "не удалось".</summary>
-internal enum WsStage { Tcp, Tls, Upgrade, Ok }
+internal enum WsStage { Tcp, Tls, TlsCert, Upgrade, Ok }
 
 /// <summary>Outcome of <see cref="TgWebSocket.ConnectAsync"/>: the socket on success, else the phase
 /// that failed and (for an upgrade failure) the HTTP status that came back instead of 101.</summary>
-internal readonly record struct WsResult(TgWebSocket? Ws, WsStage Stage, int Status)
+internal readonly record struct WsResult(TgWebSocket? Ws, WsStage Stage, int Status, string? ErrorMessage = null)
 {
     public bool Ok => Ws is not null;
 }
@@ -80,9 +81,17 @@ internal sealed class TgWebSocket : IDisposable
             tcp.NoDelay = true;
 
             stage = WsStage.Tls;
-            ssl = new SslStream(tcp.GetStream(), false, (_, _, _, _) => true);
-            await ssl.AuthenticateAsClientAsync(new SslClientAuthenticationOptions { TargetHost = sni }, ct)
-                     .WaitAsync(timeout, ct);
+            ssl = new SslStream(tcp.GetStream(), false);
+            try
+            {
+                await ssl.AuthenticateAsClientAsync(new SslClientAuthenticationOptions { TargetHost = sni }, ct)
+                         .WaitAsync(timeout, ct);
+            }
+            catch (AuthenticationException)
+            {
+                stage = WsStage.TlsCert;
+                throw;
+            }
 
             stage = WsStage.Upgrade;
             string wsKey = Convert.ToBase64String(TgProxyProto.RandomBytes(16));
@@ -97,23 +106,30 @@ internal sealed class TgWebSocket : IDisposable
             await ssl.WriteAsync(Encoding.ASCII.GetBytes(req), ct);
             await ssl.FlushAsync(ct);
 
-            int status = await ReadStatusAsync(ssl, timeout, ct);
-            if (status == 101)
+            var (status, ok, error) = await ReadUpgradeResponseAsync(ssl, wsKey, timeout, ct);
+            if (ok)
                 return new WsResult(new TgWebSocket(tcp, ssl), WsStage.Ok, status);
 
             ssl.Dispose();
             tcp.Dispose();
-            return new WsResult(null, WsStage.Upgrade, status);
+            return new WsResult(null, WsStage.Upgrade, status, error);
         }
-        catch
+        catch (Exception ex)
         {
             try { ssl?.Dispose(); } catch { /* ignore */ }
             tcp.Dispose();
-            return new WsResult(null, stage, 0);
+            return new WsResult(null, stage, 0, ex.Message);
         }
     }
 
-    private static async Task<int> ReadStatusAsync(SslStream ssl, TimeSpan timeout, CancellationToken ct)
+    internal static string ComputeSecWebSocketAccept(string key)
+    {
+        byte[] bytes = System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"));
+        return Convert.ToBase64String(bytes);
+    }
+
+    internal static async Task<(int status, bool ok, string? error)> ReadUpgradeResponseAsync(
+        Stream stream, string wsKey, TimeSpan timeout, CancellationToken ct)
     {
         var sb = new StringBuilder();
         var one = new byte[1];
@@ -121,24 +137,65 @@ internal sealed class TgWebSocket : IDisposable
         bool firstLineDone = false;
         while (true)
         {
-            int n = await ssl.ReadAsync(one, ct).AsTask().WaitAsync(timeout, ct);
-            // Premature EOF before the \r\n\r\n header terminator = an incomplete handshake response.
-            // Returning the parsed status here would accept a truncated "HTTP/1.1 101 …" as a successful
-            // upgrade; fail instead (the success path returns only at the terminator below).
-            if (n == 0) return 0;
+            int n = await stream.ReadAsync(one, ct).AsTask().WaitAsync(timeout, ct);
+            if (n == 0) return (0, false, "Неожиданный конец потока до завершения HTTP заголовков");
             sb.Append((char)one[0]);
             int len = sb.Length;
-            if (len > 16384) return 0; // malformed / oversized response headers → fail (defensive cap)
+            if (len > 16384) return (0, false, "Заголовки HTTP ответа превышают 16 КБ");
             if (!firstLineDone && len >= 2 && sb[len - 2] == '\r' && sb[len - 1] == '\n')
             {
                 string first = sb.ToString(0, len - 2);
                 string[] parts = first.Split(' ');
-                if (parts.Length >= 2) int.TryParse(parts[1], out status);
+                if (parts.Length >= 2 && int.TryParse(parts[1], out int parsed)) status = parsed;
                 firstLineDone = true;
             }
             if (len >= 4 && sb[len - 4] == '\r' && sb[len - 3] == '\n' && sb[len - 2] == '\r' && sb[len - 1] == '\n')
-                return status;
+                break;
         }
+
+        if (status != 101)
+        {
+            return (status, false, $"Статус ответа {status}, ожидался 101");
+        }
+
+        string fullHeaders = sb.ToString();
+        string[] lines = fullHeaders.Split(new[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+        bool hasUpgradeWebsocket = false;
+        bool hasConnectionUpgrade = false;
+        string? acceptHeader = null;
+
+        for (int i = 1; i < lines.Length; i++)
+        {
+            int colon = lines[i].IndexOf(':');
+            if (colon <= 0) continue;
+            string name = lines[i].Substring(0, colon).Trim();
+            string val = lines[i].Substring(colon + 1).Trim();
+            if (name.Equals("Upgrade", StringComparison.OrdinalIgnoreCase))
+            {
+                if (val.IndexOf("websocket", StringComparison.OrdinalIgnoreCase) >= 0)
+                    hasUpgradeWebsocket = true;
+            }
+            else if (name.Equals("Connection", StringComparison.OrdinalIgnoreCase))
+            {
+                if (val.IndexOf("upgrade", StringComparison.OrdinalIgnoreCase) >= 0)
+                    hasConnectionUpgrade = true;
+            }
+            else if (name.Equals("Sec-WebSocket-Accept", StringComparison.OrdinalIgnoreCase))
+            {
+                acceptHeader = val;
+            }
+        }
+
+        if (!hasUpgradeWebsocket)
+            return (status, false, "Отсутствует или неверен заголовок 'Upgrade: websocket'");
+        if (!hasConnectionUpgrade)
+            return (status, false, "Отсутствует или неверен заголовок 'Connection: Upgrade'");
+
+        string expectedAccept = ComputeSecWebSocketAccept(wsKey);
+        if (acceptHeader is null || !string.Equals(acceptHeader, expectedAccept, StringComparison.Ordinal))
+            return (status, false, $"Несовпадение Sec-WebSocket-Accept (получено: {acceptHeader ?? "null"}, ожидалось: {expectedAccept})");
+
+        return (101, true, null);
     }
 
     public async Task SendAsync(byte[] data, CancellationToken ct)
