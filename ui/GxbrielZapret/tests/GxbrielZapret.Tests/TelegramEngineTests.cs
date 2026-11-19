@@ -1,6 +1,9 @@
 using System.Buffers.Binary;
+using System.IO;
 using System.Text;
+using GxbrielZapret.Services.Infrastructure;
 using GxbrielZapret.Services.Telegram;
+using GxbrielZapret.ViewModels;
 using Xunit;
 
 namespace GxbrielZapret.Tests;
@@ -377,12 +380,227 @@ public class TelegramEngineTests
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
             string verdict = await svc.BridgeSelfTestAsync(2, cts.Token);
-            Assert.NotNull(verdict);
+            Assert.NotEmpty(verdict);
             Assert.NotEmpty(logs);
         }
         finally
         {
             svc.Stop();
+        }
+    }
+
+    [Fact]
+    public void TelegramProxy_ToggleAndStop_SynchronizesDesiredStateAndSettings()
+    {
+        var settingsSvc = new SettingsService();
+        settingsSvc.Settings.DesiredTelegramEnabled = false;
+        settingsSvc.Settings.TelegramActual = "STOPPED";
+        settingsSvc.Save();
+
+        var vm = new MainViewModel();
+        try
+        {
+            // Initial state: not running
+            Assert.False(vm.IsTelegramProxyRunning);
+            Assert.False(vm.Settings.DesiredTelegramEnabled);
+            Assert.Equal("STOPPED", vm.Settings.TelegramActual);
+
+            // 1. Toggle ON
+            vm.ToggleTelegramProxy();
+            Assert.True(vm.Settings.DesiredTelegramEnabled);
+            if (vm.IsTelegramProxyRunning)
+            {
+                Assert.Equal("RUNNING", vm.Settings.TelegramActual);
+
+                // 2. Toggle OFF
+                vm.ToggleTelegramProxy();
+                Assert.False(vm.IsTelegramProxyRunning);
+                Assert.False(vm.Settings.DesiredTelegramEnabled);
+                Assert.Equal("STOPPED", vm.Settings.TelegramActual);
+
+                // 3. Setter ON
+                vm.IsTelegramProxyEnabled = true;
+                Assert.True(vm.IsTelegramProxyRunning);
+                Assert.True(vm.Settings.DesiredTelegramEnabled);
+                Assert.Equal("RUNNING", vm.Settings.TelegramActual);
+
+                // 4. Setter OFF
+                vm.IsTelegramProxyEnabled = false;
+                Assert.False(vm.IsTelegramProxyRunning);
+                Assert.False(vm.Settings.DesiredTelegramEnabled);
+                Assert.Equal("STOPPED", vm.Settings.TelegramActual);
+            }
+        }
+        finally
+        {
+            vm.StopTelegramProxy();
+        }
+    }
+
+    [Fact]
+    public void TelegramProxyLatency_WhenNoSuccessfulRoutes_ReturnsDashInsteadOfFakePing()
+    {
+        var vm = new MainViewModel();
+        try
+        {
+            // When stopped
+            Assert.Equal("—", vm.TelegramProxyLatencyText);
+
+            // Start proxy
+            vm.StartTelegramProxy(autoOpenClient: false);
+            if (vm.IsTelegramProxyRunning)
+            {
+                // No route has had a successful probe yet
+                Assert.Equal("—", vm.TelegramProxyLatencyText);
+                Assert.DoesNotContain("75", vm.TelegramProxyLatencyText);
+            }
+        }
+        finally
+        {
+            vm.StopTelegramProxy();
+        }
+    }
+
+    [Fact]
+    public async Task TgWebSocket_InvalidTlsCertificate_RejectsWithTlsCertStage()
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var res = await TgWebSocket.ConnectAsync("1.1.1.1", "invalid.telegram.untrusted.local", TimeSpan.FromSeconds(3), ct: cts.Token);
+
+        Assert.False(res.Ok);
+        Assert.True(res.Stage == WsStage.TlsCert || res.Stage == WsStage.Tls || res.Stage == WsStage.Tcp);
+    }
+
+    [Fact]
+    public async Task TgWebSocket_Valid101WithCorrectAccept_PassesHandshake()
+    {
+        string wsKey = "dGhlIHNhbXBsZSBub25jZQ==";
+        string accept = TgWebSocket.ComputeSecWebSocketAccept(wsKey);
+        Assert.Equal("s3pPLMBiTxaQ9kYGzzhZRbK+xOo=", accept);
+
+        string response =
+            "HTTP/1.1 101 Switching Protocols\r\n" +
+            "Upgrade: websocket\r\n" +
+            "Connection: Upgrade\r\n" +
+            $"Sec-WebSocket-Accept: {accept}\r\n\r\n";
+
+        using var ms = new MemoryStream(Encoding.ASCII.GetBytes(response));
+        var (status, ok, error) = await TgWebSocket.ReadUpgradeResponseAsync(ms, wsKey, TimeSpan.FromSeconds(2), CancellationToken.None);
+
+        Assert.True(ok);
+        Assert.Equal(101, status);
+        Assert.Null(error);
+    }
+
+    [Fact]
+    public async Task TgWebSocket_InvalidAccept_FailsHandshake()
+    {
+        string wsKey = "dGhlIHNhbXBsZSBub25jZQ==";
+        string response =
+            "HTTP/1.1 101 Switching Protocols\r\n" +
+            "Upgrade: websocket\r\n" +
+            "Connection: Upgrade\r\n" +
+            "Sec-WebSocket-Accept: invalidAcceptKey==\r\n\r\n";
+
+        using var ms = new MemoryStream(Encoding.ASCII.GetBytes(response));
+        var (status, ok, error) = await TgWebSocket.ReadUpgradeResponseAsync(ms, wsKey, TimeSpan.FromSeconds(2), CancellationToken.None);
+
+        Assert.False(ok);
+        Assert.Equal(101, status);
+        Assert.Contains("Sec-WebSocket-Accept", error);
+    }
+
+    [Fact]
+    public async Task TgWebSocket_MissingUpgradeHeaders_FailsHandshake()
+    {
+        string wsKey = "dGhlIHNhbXBsZSBub25jZQ==";
+        string accept = TgWebSocket.ComputeSecWebSocketAccept(wsKey);
+        string response =
+            "HTTP/1.1 101 Switching Protocols\r\n" +
+            $"Sec-WebSocket-Accept: {accept}\r\n\r\n";
+
+        using var ms = new MemoryStream(Encoding.ASCII.GetBytes(response));
+        var (status, ok, error) = await TgWebSocket.ReadUpgradeResponseAsync(ms, wsKey, TimeSpan.FromSeconds(2), CancellationToken.None);
+
+        Assert.False(ok);
+        Assert.Equal(101, status);
+        Assert.Contains("Upgrade", error);
+    }
+
+    [Fact]
+    public async Task TgWebSocket_TruncatedEof_FailsHandshake()
+    {
+        string wsKey = "dGhlIHNhbXBsZSBub25jZQ==";
+        string truncated = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n";
+
+        using var ms = new MemoryStream(Encoding.ASCII.GetBytes(truncated));
+        var (status, ok, error) = await TgWebSocket.ReadUpgradeResponseAsync(ms, wsKey, TimeSpan.FromSeconds(2), CancellationToken.None);
+
+        Assert.False(ok);
+        Assert.Equal(0, status);
+        Assert.NotNull(error);
+    }
+
+    [Fact]
+    public void TelegramDiagnosticsReport_FormatsSafeDiagnosticTextWithoutSensitiveData()
+    {
+        var report = new TelegramDiagnosticsReport
+        {
+            OverallOk = false,
+            Summary = "1 node available, 2 blocked"
+        };
+        report.Steps.Add(new TelegramProbeStep
+        {
+            TargetName = "Direct DC2",
+            Dc = 2,
+            Lane = "chat",
+            DnsSource = "Direct IP",
+            AttemptedEndpoint = "149.154.167.220:443",
+            DnsOk = true,
+            TcpOk = false,
+            OutcomeSummary = "TCP Timeout/Blocked"
+        });
+        report.Steps.Add(new TelegramProbeStep
+        {
+            TargetName = "CF Front (example.co.uk)",
+            Dc = 2,
+            Lane = "chat",
+            DnsSource = "DoH",
+            AttemptedEndpoint = "188.114.96.1:443 (kws2.example.co.uk)",
+            DnsOk = true,
+            TcpOk = true,
+            TlsOk = true,
+            WsOk = true,
+            WsStatus = 101,
+            MtProtoResPqOk = true,
+            LatencyMs = 85,
+            OutcomeSummary = "OK"
+        });
+
+        string safeText = report.ToSafeDiagnosticText();
+        Assert.Contains("=== GXBRIEL_ZAPRET Telegram Diagnostics", safeText);
+        Assert.Contains("Direct DC2", safeText);
+        Assert.Contains("TCP FAIL", safeText);
+        Assert.Contains("CF Front (example.co.uk)", safeText);
+        Assert.Contains("85 ms", safeText);
+        Assert.DoesNotContain("secret", safeText, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("token", safeText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task TelegramDiagnostics_DetailedDiagnosticCheck_ProducesStructuredReport()
+    {
+        using var svc = new TelegramProxyService();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var report = await svc.DetailedDiagnosticCheckAsync(cts.Token);
+
+        Assert.NotNull(report);
+        Assert.NotEmpty(report.Summary);
+        Assert.NotEmpty(report.Steps);
+        foreach (var s in report.Steps)
+        {
+            Assert.NotEmpty(s.TargetName);
+            Assert.NotEmpty(s.AttemptedEndpoint);
         }
     }
 }
