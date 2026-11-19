@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using GxbrielZapret.Localization;
 using GxbrielZapret.Models;
 using GxbrielZapret.Services.Engine;
@@ -84,7 +85,6 @@ public sealed partial class MainViewModel
             OnPropertyChanged(nameof(ScopeBoth));
             OnPropertyChanged(nameof(ScopeDiscord));
             OnPropertyChanged(nameof(ScopeYouTube));
-            OnPropertyChanged(nameof(ScopeRiot));
             OnPropertyChanged(nameof(ScopeTitle));
             ResetAutoTargetsForScope();
             OnPropertyChanged(nameof(WorkPresetCount));
@@ -103,7 +103,6 @@ public sealed partial class MainViewModel
     public bool ScopeBoth { get => SelectedAutoScope == AutoScope.Both; set { if (value) SelectedAutoScope = AutoScope.Both; } }
     public bool ScopeDiscord { get => SelectedAutoScope == AutoScope.Discord; set { if (value) SelectedAutoScope = AutoScope.Discord; } }
     public bool ScopeYouTube { get => SelectedAutoScope == AutoScope.YouTube; set { if (value) SelectedAutoScope = AutoScope.YouTube; } }
-    public bool ScopeRiot { get => SelectedAutoScope == AutoScope.Riot; set { if (value) SelectedAutoScope = AutoScope.Riot; } }
 
     public string ScopeTitle => Loc.T(SelectedAutoScope.Title());
     private IReadOnlyList<string> ActiveProbeTargets => SelectedAutoScope.GoalHosts();
@@ -437,6 +436,7 @@ public sealed partial class MainViewModel
             }
 
             using var probeSvc = new Canonical5ProbeService();
+            var scanWatch = System.Diagnostics.Stopwatch.StartNew();
 
             int? firstWorkIndex = null;
             for (int i = 0; i < candidates.Count; i++)
@@ -445,9 +445,19 @@ public sealed partial class MainViewModel
                 var preset = candidates[i];
                 EnsureProbeContext(networkFp, scope, optionsKey);
                 MarkCandidateRunning(preset.Name);
+
+                string etaString = "";
+                if (i >= 2)
+                {
+                    double avgMs = (double)scanWatch.ElapsedMilliseconds / i;
+                    int remaining = candidates.Count - i;
+                    var eta = TimeSpan.FromMilliseconds(avgMs * remaining);
+                    etaString = $" · ~{eta:mm\\:ss} осталось";
+                }
+
                 SetAutoStatus(stopOnFirstPerfect
-                    ? Loc.T("[{0}/{1}] Быстрый подбор: {2}…", i + 1, candidates.Count, preset.Name)
-                    : Loc.T("[{0}/{1}] Проверка: {2}…", i + 1, candidates.Count, preset.Name));
+                    ? Loc.T("[{0}/{1}] Быстрый подбор: {2}{3}…", i + 1, candidates.Count, preset.Name, etaString)
+                    : Loc.T("[{0}/{1}] Проверка: {2}{3}…", i + 1, candidates.Count, preset.Name, etaString));
 
                 var res = await probeSvc.EvaluateCandidateAsync(
                     preset,
@@ -517,7 +527,15 @@ public sealed partial class MainViewModel
                 }
 
                 AutoProgress = (double)(i + 1) / candidates.Count;
-                AutoProgressText = Loc.T("{0}/{1} стратегий", i + 1, candidates.Count);
+                string progressEta = "";
+                if (i >= 2)
+                {
+                    double avgMs = (double)scanWatch.ElapsedMilliseconds / (i + 1);
+                    int remaining = candidates.Count - (i + 1);
+                    var eta = TimeSpan.FromMilliseconds(avgMs * remaining);
+                    progressEta = $" · прошло {scanWatch.Elapsed:mm\\:ss}, осталось ~{eta:mm\\:ss}";
+                }
+                AutoProgressText = Loc.T("{0}/{1} стратегий{2}", i + 1, candidates.Count, progressEta);
                 OnPropertyChanged(nameof(AutoStatsSummary));
             }
 
