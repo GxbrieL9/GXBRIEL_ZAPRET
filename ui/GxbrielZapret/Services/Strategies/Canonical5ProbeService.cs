@@ -162,6 +162,8 @@ public sealed class Canonical5ProbeService : IDisposable
             // --- STAGE 1: Первичный отсев (1 запрос на target, fail-fast при первом подтверждённом отказе) ---
             progress.Stage("Первичный отсев · по 1 запросу на цель");
             bool stage1Passed = true;
+            string? firstFailHost = null;
+            object stage1Lock = new();
             using (var stage1Cts = CancellationTokenSource.CreateLinkedTokenSource(ct))
             {
                 var stage1Tasks = targets.Select(async target =>
@@ -174,24 +176,44 @@ public sealed class Canonical5ProbeService : IDisposable
                         progress.Update($"{target} · первичный запрос");
                         var evidence = await _probeTarget(target, stage1Cts.Token).ConfigureAwait(false);
                         timer.Stop();
+
+                        // GXB-141: Дешёвый быстрый повтор перед тем, как считать цель сбойной
+                        if (evidence.Passed != true && !stage1Cts.IsCancellationRequested && !ct.IsCancellationRequested)
+                        {
+                            await Task.Delay(150, stage1Cts.Token).ConfigureAwait(false);
+                            var retryTimer = Stopwatch.StartNew();
+                            var retryEvidence = await _probeTarget(target, stage1Cts.Token).ConfigureAwait(false);
+                            retryTimer.Stop();
+                            if (retryEvidence.Passed == true)
+                            {
+                                evidence = retryEvidence;
+                                timer = retryTimer;
+                            }
+                        }
+
                         lock (durations) durations.Add(Math.Max(1, timer.ElapsedMilliseconds));
                         bool stepOk = evidence.Passed == true;
-                        lock (probeResults)
+                        lock (stage1Lock)
                         {
                             probeResults[target] = stepOk;
                             hostAnyOk[target] = stepOk;
                             targetAttempts[target].Add($"1/3: {evidence.Detail} ({timer.ElapsedMilliseconds} ms)");
-                        }
-                        if (!stepOk)
-                        {
-                            stage1Passed = false;
-                            try { stage1Cts.Cancel(); } catch (ObjectDisposedException) { }
+                            if (!stepOk)
+                            {
+                                stage1Passed = false;
+                                firstFailHost ??= target;
+                                try { stage1Cts.Cancel(); } catch (ObjectDisposedException) { }
+                            }
                         }
                         onHostProbed?.Invoke(target, stepOk);
                     }
                     catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                     {
                         // Canceled by fail-fast because another target confirmed failure
+                        lock (stage1Lock)
+                        {
+                            targetAttempts[target].Add($"пропущен (fail-fast отсев после отказа на {firstFailHost ?? "другом хосте"})");
+                        }
                     }
                     finally
                     {
@@ -243,6 +265,7 @@ public sealed class Canonical5ProbeService : IDisposable
                     Probes: probeResults,
                     Summary: earlySummary,
                     Flows: null,
+                    CheckUnavailable: !engineAliveEarly,
                     TargetDetails: targetDetails
                 ));
             }
@@ -475,8 +498,7 @@ public sealed class Canonical5ProbeService : IDisposable
         if (youtube && discord) return AutoScope.Both;
         if (youtube) return AutoScope.YouTube;
         if (discord) return AutoScope.Discord;
-        bool riot = AutoScope.Riot.GoalHosts().Any(hosts.Contains);
-        return riot ? AutoScope.Riot : null;
+        return null;
     }
 
     internal static bool IsExpectedTargetResponse(string target, string code)
