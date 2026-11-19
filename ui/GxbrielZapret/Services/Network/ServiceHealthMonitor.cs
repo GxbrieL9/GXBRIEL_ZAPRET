@@ -30,14 +30,12 @@ public sealed record ServiceHealthSnapshot(
     {
         AutoScope.Discord => Discord == ServiceHealthState.Working,
         AutoScope.YouTube => YouTube == ServiceHealthState.Working,
-        AutoScope.Riot => Discord == ServiceHealthState.Working || YouTube == ServiceHealthState.Working, // Riot uses same DPI bypass as general
         _ => IsFullyHealthy
     };
     public bool IsConclusiveFor(AutoScope scope) => scope switch
     {
         AutoScope.Discord => Discord is ServiceHealthState.Working or ServiceHealthState.Failed,
         AutoScope.YouTube => YouTube is ServiceHealthState.Working or ServiceHealthState.Failed,
-        AutoScope.Riot => IsConclusiveFor(AutoScope.Discord) || IsConclusiveFor(AutoScope.YouTube),
         _ => IsConclusiveFor(AutoScope.Discord) && IsConclusiveFor(AutoScope.YouTube)
     };
 }
