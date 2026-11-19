@@ -3,14 +3,117 @@ using System.Net.Http;
 
 namespace GxbrielZapret.Services.Platform;
 
+public enum AntigravityProxySource
+{
+    None,
+    Scoped,
+    User,
+    Machine,
+    Process
+}
+
+public sealed record AntigravityProxyResolution(
+    string? Value,
+    AntigravityProxySource Source,
+    string? RedactedValue = null);
+
 internal static class AntigravityProxy
 {
-    internal static string? Resolve(string? process, string? user, string? machine) =>
-        new[] { user, machine, process }.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim();
+    internal static AntigravityProxyResolution ResolveDetailed(string? scoped, string? user, string? machine, string? process = null)
+    {
+        if (!string.IsNullOrWhiteSpace(scoped))
+            return new(scoped.Trim(), AntigravityProxySource.Scoped, RedactSafe(scoped.Trim()));
+        if (!string.IsNullOrWhiteSpace(user))
+            return new(user.Trim(), AntigravityProxySource.User, RedactSafe(user.Trim()));
+        if (!string.IsNullOrWhiteSpace(machine))
+            return new(machine.Trim(), AntigravityProxySource.Machine, RedactSafe(machine.Trim()));
+        if (!string.IsNullOrWhiteSpace(process))
+            return new(process.Trim(), AntigravityProxySource.Process, RedactSafe(process.Trim()));
+        return new(null, AntigravityProxySource.None, null);
+    }
 
-    internal static string? Read() => Resolve(Environment.GetEnvironmentVariable("AG_LS_PROXY"),
+    internal static string? Resolve(string? scoped, string? user, string? machine) =>
+        ResolveDetailed(scoped, user, machine).Value;
+
+    internal static string? Resolve(string? scoped, string? user, string? machine, string? process) =>
+        ResolveDetailed(scoped, user, machine, process).Value;
+
+    internal static string? Read() => Resolve(
+        null,
         Environment.GetEnvironmentVariable("AG_LS_PROXY", EnvironmentVariableTarget.User),
-        Environment.GetEnvironmentVariable("AG_LS_PROXY", EnvironmentVariableTarget.Machine));
+        Environment.GetEnvironmentVariable("AG_LS_PROXY", EnvironmentVariableTarget.Machine),
+        Environment.GetEnvironmentVariable("AG_LS_PROXY"));
+
+    internal static string Redact(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "";
+        string trimmed = value.Trim();
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+        {
+            string host = uri.HostNameType == UriHostNameType.IPv6 ? "[" + uri.Host.Trim('[', ']') + "]" : uri.IdnHost;
+            return $"{uri.Scheme}://{host}:{uri.Port}";
+        }
+        int slashIdx = trimmed.IndexOf("://", StringComparison.Ordinal);
+        int authorityStart = slashIdx >= 0 ? slashIdx + 3 : 0;
+        int pathIdx = trimmed.IndexOfAny(['/', '?', '#'], authorityStart);
+        int authorityEnd = pathIdx >= 0 ? pathIdx : trimmed.Length;
+        int count = authorityEnd - authorityStart;
+        if (count > 0)
+        {
+            int atIdx = trimmed.LastIndexOf('@', authorityEnd - 1, count);
+            if (atIdx >= authorityStart)
+            {
+                string prefix = slashIdx >= 0 ? trimmed[..(slashIdx + 3)] : "";
+                return prefix + trimmed[(atIdx + 1)..];
+            }
+        }
+        return trimmed;
+    }
+
+    internal static string? RedactSafe(string? value) =>
+        value is null ? null : Redact(value);
+
+    internal static bool ContainsCredentials(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        try
+        {
+            if (Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri) && uri.UserInfo.Length > 0)
+                return true;
+        }
+        catch { }
+        string trimmed = value.Trim();
+        int slashIdx = trimmed.IndexOf("://", StringComparison.Ordinal);
+        int authorityStart = slashIdx >= 0 ? slashIdx + 3 : 0;
+        int pathIdx = trimmed.IndexOfAny(['/', '?', '#'], authorityStart);
+        int authorityEnd = pathIdx >= 0 ? pathIdx : trimmed.Length;
+        int count = authorityEnd - authorityStart;
+        if (count > 0)
+        {
+            int atIdx = trimmed.LastIndexOf('@', authorityEnd - 1, count);
+            return atIdx >= authorityStart;
+        }
+        return false;
+    }
+
+    internal static (string RedactedUrl, string? UserInfo) SplitCredentials(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return ("", null);
+        Uri uri = Parse(value);
+        string host = uri.HostNameType == UriHostNameType.IPv6 ? "[" + uri.Host.Trim('[', ']') + "]" : uri.IdnHost;
+        string redacted = $"{uri.Scheme}://{host}:{uri.Port}";
+        string? userInfo = uri.UserInfo.Length > 0 ? uri.UserInfo : null;
+        return (redacted, userInfo);
+    }
+
+    internal static string Combine(string proxyUrl, string? userInfo)
+    {
+        if (string.IsNullOrWhiteSpace(proxyUrl)) return "";
+        if (string.IsNullOrWhiteSpace(userInfo)) return proxyUrl.Trim();
+        Uri uri = Parse(proxyUrl);
+        string host = uri.HostNameType == UriHostNameType.IPv6 ? "[" + uri.Host.Trim('[', ']') + "]" : uri.IdnHost;
+        return $"{uri.Scheme}://{userInfo}@{host}:{uri.Port}";
+    }
 
     internal static Uri Parse(string value)
     {
