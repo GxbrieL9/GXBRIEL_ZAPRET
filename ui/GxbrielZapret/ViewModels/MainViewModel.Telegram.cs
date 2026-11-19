@@ -22,7 +22,7 @@ public sealed partial class MainViewModel
         {
             if (value == _tgProxy.IsRunning) return;
             if (value) StartTelegramProxy();
-            else _tgProxy.Stop();
+            else StopTelegramProxy();
         }
     }
 
@@ -65,6 +65,7 @@ public sealed partial class MainViewModel
             Settings.TelegramActual = "ERROR";
             _settingsSvc.Save();
         }
+        RefreshTelegramProxyStatus();
     }
 
     public void StopTelegramProxy()
@@ -73,13 +74,14 @@ public sealed partial class MainViewModel
         Settings.TelegramActual = "STOPPED";
         _settingsSvc.Save();
         _tgProxy.Stop();
+        RefreshTelegramProxyStatus();
     }
 
-    private void ToggleTelegramProxy()
+    public void ToggleTelegramProxy()
     {
         if (_tgProxy.IsRunning)
         {
-            _tgProxy.Stop();
+            StopTelegramProxy();
         }
         else
         {
@@ -133,7 +135,22 @@ public sealed partial class MainViewModel
         }
         else
         {
-            TelegramProxyStatus = Loc.T("Прокси Telegram активен и готов к работе.");
+            var routes = _tgProxy.Routes.GetAllRoutes();
+            bool hasSuccess = routes.Any(r => r.ConsecutiveSuccesses > 0 && r.State == RouteState.Healthy);
+            bool allDead = routes.Count > 0 && routes.All(r => r.State == RouteState.Dead || r.IsCooling);
+
+            if (allDead)
+            {
+                TelegramProxyStatus = Loc.T("Ошибка: нет доступных upstream-маршрутов Telegram.");
+            }
+            else if (hasSuccess)
+            {
+                TelegramProxyStatus = Loc.T("Прокси Telegram активен (upstream подтверждён).");
+            }
+            else
+            {
+                TelegramProxyStatus = Loc.T("Прокси запущен локально. Ожидание подключения Telegram…");
+            }
         }
 
         OnPropertyChanged(nameof(IsTelegramProxyRunning));
@@ -155,8 +172,10 @@ public sealed partial class MainViewModel
         {
             if (!_tgProxy.IsRunning) return "—";
             var routes = _tgProxy.Routes.GetAllRoutes();
-            var minLat = routes.Where(r => r.LatencyMs > 0).Select(r => r.LatencyMs).DefaultIfEmpty(0).Min();
-            return minLat > 0 ? $"{minLat} ms" : "≈ 75 ms";
+            var successfulRoutes = routes.Where(r => r.ConsecutiveSuccesses > 0 && r.LatencyMs > 0).ToList();
+            if (successfulRoutes.Count == 0) return "—";
+            var minLat = successfulRoutes.Select(r => r.LatencyMs).Min();
+            return $"{minLat} ms";
         }
     }
 
@@ -177,6 +196,19 @@ public sealed partial class MainViewModel
         if (_tgProxy.IsRunning && Settings.TgProxyPort != _tgProxy.Port)
         {
             Settings.TgProxyPort = _tgProxy.Port;
+            _settingsSvc.Save();
+        }
+
+        if (!_tgProxy.IsRunning)
+        {
+            if (!string.IsNullOrEmpty(_tgProxy.StartError))
+            {
+                Settings.TelegramActual = "ERROR";
+            }
+            else if (Settings.TelegramActual == "RUNNING")
+            {
+                Settings.TelegramActual = "STOPPED";
+            }
             _settingsSvc.Save();
         }
 
@@ -205,6 +237,29 @@ public sealed partial class MainViewModel
     /// <summary>Label for the Telegram self-test button.</summary>
     public string CheckTelegramProxyButtonText => _isCheckingTgProxy ? Loc.T("Проверяю…") : Loc.T("Проверить соединение");
 
+    private string? _lastTelegramDiagnostics;
+    public string? LastTelegramDiagnostics
+    {
+        get => _lastTelegramDiagnostics;
+        private set
+        {
+            if (SetField(ref _lastTelegramDiagnostics, value))
+            {
+                OnPropertyChanged(nameof(HasTelegramDiagnostics));
+                CopyTelegramDiagnosticsCommand?.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool HasTelegramDiagnostics => !string.IsNullOrWhiteSpace(_lastTelegramDiagnostics);
+
+    public void CopyTelegramDiagnostics()
+    {
+        if (string.IsNullOrWhiteSpace(LastTelegramDiagnostics)) return;
+        CopyToClipboard(LastTelegramDiagnostics);
+        SimpleStatus = Loc.T("Диагностический отчёт Telegram скопирован.");
+    }
+
     /// <summary>Run the built-in proxy's upstream self-test and show the verdict on the card; the
     /// step-by-step details go to the journal. Independent of the winws2 engine and needs no admin.</summary>
     private async Task CheckTelegramProxyAsync()
@@ -213,7 +268,10 @@ public sealed partial class MainViewModel
         TelegramProxyStatus = Loc.T("Проверяю соединение с Telegram…");
         try
         {
-            TelegramProxyStatus = await _tgProxy.SelfTestAsync();
+            var report = await _tgProxy.DetailedDiagnosticCheckAsync();
+            LastTelegramDiagnostics = report.ToSafeDiagnosticText();
+            TelegramProxyStatus = report.Summary;
+            _tgProxy.RaiseLogLine(Loc.T("[tg-proxy] Результаты проверки:\n{0}", LastTelegramDiagnostics));
         }
         catch (Exception ex)
         {
