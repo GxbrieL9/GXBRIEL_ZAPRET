@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using GxbrielZapret.Services.Infrastructure;
 
 namespace GxbrielZapret.Services.Platform;
 
@@ -55,9 +56,38 @@ public static class AntigravityProxyManager
         catch (ArgumentException ex) { return (false, ex.Message); }
     }
 
+    public static bool MigrateAndClearUserEnvironment(AppSettings? settings = null, Action? saveSettings = null)
+    {
+        string? userEnv = Environment.GetEnvironmentVariable("AG_LS_PROXY", EnvironmentVariableTarget.User);
+        string? procEnv = Environment.GetEnvironmentVariable("AG_LS_PROXY");
+
+        if (string.IsNullOrWhiteSpace(userEnv) && string.IsNullOrWhiteSpace(procEnv))
+            return false;
+
+        string sourceProxy = !string.IsNullOrWhiteSpace(userEnv) ? userEnv.Trim() : procEnv!.Trim();
+
+        if (settings is not null && string.IsNullOrWhiteSpace(settings.AntigravityProxy))
+        {
+            // Fail closed: if protection fails, exception propagates, settings are not saved,
+            // and neither HKCU nor process environment is cleared, preventing loss of proxy auth.
+            settings.SetAntigravityProxy(sourceProxy);
+            settings.AntigravityUseProxy = true;
+            saveSettings?.Invoke();
+        }
+
+        // Only after migration succeeds without error, clear BOTH HKCU and inherited process environment
+        try { Environment.SetEnvironmentVariable("AG_LS_PROXY", null, EnvironmentVariableTarget.User); } catch { }
+        try { Environment.SetEnvironmentVariable("AG_LS_PROXY", null); } catch { }
+        return true;
+    }
+
+    public static void SanitizeUserEnvironment(AppSettings? settings = null, Action? saveSettings = null) =>
+        MigrateAndClearUserEnvironment(settings, saveSettings);
+
+    [Obsolete("Persistent user environment proxy storage is deprecated and disabled for security. Proxy routing is child-process-scoped only.")]
     public static void SetUserEnvironmentProxy(string? proxyUrl)
     {
-        Environment.SetEnvironmentVariable("AG_LS_PROXY", string.IsNullOrWhiteSpace(proxyUrl) ? null : proxyUrl.Trim(), EnvironmentVariableTarget.User);
+        Environment.SetEnvironmentVariable("AG_LS_PROXY", null, EnvironmentVariableTarget.User);
     }
 
     public static string? GetUserEnvironmentProxy()
