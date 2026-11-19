@@ -135,12 +135,21 @@ public sealed partial class EngineService : IDisposable
         // global game filter or the targeted LoL TCP 2099 workaround. This matters because Riot's LCU
         // stack is sensitive to even pass-through WinDivert/desync mistakes on auth, XMPP and profile
         // connections.
-        // {WF_TCP}/{WF_UDP}: WinDivert capture width.
-        // GameFilter widens capture to high ports. LeagueTcp2099Bypass adds only TCP 2099 without
-        // enabling the broad game filter.
+        // {WF_TCP}/{WF_UDP}: WinDivert capture width (the ports the kernel hands to winws2).
+        // Default capture remains narrow (web/CDN + voice ports) so sensitive gaming traffic
+        // (Riot LCU auth, XMPP chat 5222/5223, LoL match UDP 5000-5500, LoL TCP 2099) bypasses
+        // WinDivert directly at the OS kernel layer with zero latency/jitter.
+        // When gameFilter is explicitly enabled, we widen capture to high ports while strictly
+        // preserving isolation for sensitive gaming traffic (excluding LoL TCP 2099 unless
+        // leagueTcp2099Bypass is on, excluding Riot XMPP 5222-5223, excluding Windows SMB 445).
         string tcpPorts = "80,443,2053,2083,2087,2096,8443";
         if (leagueTcp2099Bypass) tcpPorts = "80,443,2053,2083,2087,2096,2099,8443";
-        string wfTcp = gameFilter ? "--wf-tcp-out=80,443-65535" : $"--wf-tcp-out={tcpPorts}";
+
+        string highTcpPorts = leagueTcp2099Bypass
+            ? "1024-5221,5224-65535"
+            : "1024-2098,2100-5221,5224-65535";
+
+        string wfTcp = gameFilter ? $"--wf-tcp-out={tcpPorts},{highTcpPorts}" : $"--wf-tcp-out={tcpPorts}";
         string wfUdp = gameFilter ? "--wf-udp-out=443,19294-19344,50000-65535" : "--wf-udp-out=443,19294-19344,50000-50100";
 
         string launchHostlistPath = !string.IsNullOrWhiteSpace(hostlistPath) && File.Exists(hostlistPath)
@@ -262,7 +271,7 @@ public sealed partial class EngineService : IDisposable
         if (firstProfile < 0) return;
         args.InsertRange(firstProfile, new[]
         {
-            "--filter-tcp=80,443-65535", "--filter-udp=443-65535", "--filter-l7=http,tls,quic",
+            "--filter-tcp=80,443,8443", "--filter-udp=443", "--filter-l7=http,tls,quic",
             "--hostlist-domains=antigravity.google,accounts.google.com,www.googleapis.com,oauth2.googleapis.com,generativelanguage.googleapis.com,alkalimakersuite-pa.clients6.google.com,cloudaicompanion.googleapis.com,cloudaicompanion-pa.googleapis.com,aicode.googleapis.com,cloudcode-pa.googleapis.com,daily-cloudcode-pa.googleapis.com,autopush-cloudcode-pa.sandbox.googleapis.com,staging-cloudcode-pa.sandbox.googleapis.com,proactivebackend-pa.googleapis.com,aiplatform.googleapis.com,aistudio.google.com,gemini.google.com,alkali.googleapis.com,deepmind.google,ai.google.dev,google.dev,play.googleapis.com,play.google.com,mail.google.com,docs.google.com,drive.google.com,translate.google.com,maps.google.com,calendar.google.com,lh3.googleusercontent.com,www.gstatic.com",
             "--new"
         });
@@ -279,7 +288,7 @@ public sealed partial class EngineService : IDisposable
         if (firstProfile < 0) return;
         args.InsertRange(firstProfile, new[]
         {
-            "--filter-tcp=80,443-65535", "--filter-udp=443-65535", "--filter-l7=http,tls,quic",
+            "--filter-tcp=80,443,8443", "--filter-udp=443", "--filter-l7=http,tls,quic",
             "--hostlist-domains=splice.com,api.splice.com,desktop.splice.com,spliceblob.splice.com,s3-us-west-1.amazonaws.com,spliceproduction.s3.us-west-1.amazonaws.com,spliceproduction.s3.amazonaws.com,splice-res.cloudinary.com,res.cloudinary.com,auth0.com,cdn.auth0.com,ps.pndsn.com,pubnub.net,pubsub.pubnub.com",
             "--new"
         });
