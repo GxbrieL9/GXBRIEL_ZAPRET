@@ -14,14 +14,13 @@ public sealed record FlowEvidence(bool? Passed, string Detail, long Bytes = 0, d
 public sealed record ApplicationFlowResult(FlowEvidence YouTubeVideo, FlowEvidence DiscordGateway)
 {
     public bool HasFailure(AutoScope scope) =>
-        scope != AutoScope.Riot &&
         ((scope != AutoScope.Discord && YouTubeVideo?.Passed == false) ||
          (scope != AutoScope.YouTube && DiscordGateway?.Passed == false));
     public bool IsConclusive(AutoScope scope) => Passes(scope) || HasFailure(scope);
     public bool Passes(AutoScope scope) =>
         Enum.IsDefined(scope) && YouTubeVideo is not null && DiscordGateway is not null &&
-        (scope is AutoScope.Discord or AutoScope.Riot || YouTubeVideo is { Passed: true, Bytes: >= ApplicationFlowProbe.VideoSampleBytes }) &&
-        (scope is AutoScope.YouTube or AutoScope.Riot || DiscordGateway?.Passed == true);
+        (scope is AutoScope.Discord || YouTubeVideo is { Passed: true, Bytes: >= ApplicationFlowProbe.VideoSampleBytes }) &&
+        (scope is AutoScope.YouTube || DiscordGateway?.Passed == true);
     public string Summary => $"YouTube: {YouTubeVideo.Detail} · Discord: {DiscordGateway.Detail} · Голос не проверен.";
 }
 
