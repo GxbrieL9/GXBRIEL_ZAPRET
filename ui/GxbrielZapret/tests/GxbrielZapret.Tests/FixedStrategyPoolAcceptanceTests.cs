@@ -45,9 +45,9 @@ public sealed class FixedStrategyPoolAcceptanceTests : IDisposable
     public void Catalog_ContainsExactly39ImmutableReferenceStrategies()
     {
         var allRef = ReferenceStrategyCatalog.All;
-        Assert.Equal(47, allRef.Count);
+        Assert.Equal(39, allRef.Count);
         Assert.Equal(39, ReferenceStrategyCatalog.Baseline.Count);
-        Assert.Equal(8, ReferenceStrategyCatalog.Extensions.Count);
+        Assert.Equal(0, ReferenceStrategyCatalog.Extensions.Count);
 
         var bList = allRef.Where(r => r.Id.StartsWith("GX-B")).ToList();
         var cList = allRef.Where(r => r.Id.StartsWith("GX-C")).ToList();
@@ -56,8 +56,8 @@ public sealed class FixedStrategyPoolAcceptanceTests : IDisposable
         Assert.Equal(30, cList.Count);
 
         // Distinct IDs and fingerprints
-        Assert.Equal(47, allRef.Select(r => r.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.Equal(47, allRef.Select(r => r.Fingerprint).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(39, allRef.Select(r => r.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(39, allRef.Select(r => r.Fingerprint).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 
     [Fact]
@@ -66,13 +66,13 @@ public sealed class FixedStrategyPoolAcceptanceTests : IDisposable
         var presetService = new PresetService();
         var presets = presetService.ReferencePresets;
 
-        Assert.Equal(47, presets.Count);
+        Assert.Equal(39, presets.Count);
 
         int workCount = presets.Count(p => p.IsWork);
         int brokenCount = presets.Count(p => p.IsFailed);
         int untestedCount = presets.Count(p => p.IsUntested);
 
-        Assert.Equal(47, workCount + brokenCount + untestedCount);
+        Assert.Equal(39, workCount + brokenCount + untestedCount);
         Assert.Equal(0, workCount);
     }
 
@@ -84,7 +84,7 @@ public sealed class FixedStrategyPoolAcceptanceTests : IDisposable
         presetService.LoadForNetwork(testNetwork);
 
         var presets = presetService.ReferencePresets.ToList();
-        Assert.Equal(47, presets.Count);
+        Assert.Equal(39, presets.Count);
 
         // Simulate Full Scan: 5 strategies pass 5/5, 34 fail
         var passingIds = new HashSet<string> { "GX-B01", "GX-B03", "GX-B05", "GX-C01", "GX-C10" };
@@ -117,9 +117,9 @@ public sealed class FixedStrategyPoolAcceptanceTests : IDisposable
         int untestedCount = reloaded.Count(p => p.IsUntested);
 
         Assert.Equal(5, workCount);
-        Assert.Equal(42, brokenCount);
+        Assert.Equal(34, brokenCount);
         Assert.Equal(0, untestedCount);
-        Assert.Equal(47, workCount + brokenCount + untestedCount);
+        Assert.Equal(39, workCount + brokenCount + untestedCount);
     }
 
     [Fact]
@@ -178,8 +178,8 @@ public sealed class FixedStrategyPoolAcceptanceTests : IDisposable
         Assert.False(demotedCandidate.IsWork);
         Assert.True(demotedCandidate.IsFailed);
         Assert.Equal(1, presetService.ReferencePresets.Count(p => p.IsFailed));
-        Assert.Equal(44, presetService.ReferencePresets.Count(p => p.IsUntested));
-        Assert.Equal(47, presetService.ReferencePresets.Count(p => p.IsWork) + presetService.ReferencePresets.Count(p => p.IsFailed) + presetService.ReferencePresets.Count(p => p.IsUntested));
+        Assert.Equal(36, presetService.ReferencePresets.Count(p => p.IsUntested));
+        Assert.Equal(39, presetService.ReferencePresets.Count(p => p.IsWork) + presetService.ReferencePresets.Count(p => p.IsFailed) + presetService.ReferencePresets.Count(p => p.IsUntested));
     }
 
     [Fact]
