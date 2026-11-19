@@ -175,7 +175,12 @@ public sealed partial class EngineService : IDisposable
 
         foreach (var raw in preset.Args)
         {
-            string a = raw
+            string effectiveRaw = raw;
+            // GXB-206: Guarantee GameFilter capture policy on all presets (including GX-C hardcoded --wf-* literals)
+            if (raw.StartsWith("--wf-tcp-out=", StringComparison.Ordinal)) effectiveRaw = wfTcp;
+            else if (raw.StartsWith("--wf-udp-out=", StringComparison.Ordinal)) effectiveRaw = wfUdp;
+
+            string a = effectiveRaw
                 .Replace("{FILES}", AppPaths.FilesDir, StringComparison.Ordinal)
                 .Replace("{WF}", AppPaths.WinDivertFilterDir, StringComparison.Ordinal)
                 .Replace("{WF_TCP}", wfTcp, StringComparison.Ordinal)
