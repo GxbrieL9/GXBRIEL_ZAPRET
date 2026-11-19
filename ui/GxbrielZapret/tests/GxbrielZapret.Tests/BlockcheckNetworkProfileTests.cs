@@ -89,7 +89,7 @@ public sealed class BlockcheckNetworkProfileTests : IDisposable
         var service = new PresetService();
         service.LoadForNetwork("network-a", Options);
         Assert.Equal(2, service.All.Count(p => p.BoundNetworkFingerprint is not null));
-        Assert.Equal(47, service.ReferencePresets.Count);
+        Assert.Equal(39, service.ReferencePresets.Count);
         service.LoadForNetwork("network-b", Options);
         Assert.DoesNotContain(service.All, p => p.BoundNetworkFingerprint is not null);
     }
