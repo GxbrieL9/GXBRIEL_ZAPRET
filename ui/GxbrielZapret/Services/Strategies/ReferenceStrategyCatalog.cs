@@ -823,15 +823,14 @@ public static class ReferenceStrategyCatalog
 
     public static IReadOnlyList<ReferenceStrategy> BuiltIns => ShippedBuiltIns;
 
-    public static IReadOnlyList<ReferenceStrategy> CatalogCandidates { get; } = ShippedCatalogCandidates.Concat(UpstreamCandidates).ToArray();
+    public static IReadOnlyList<ReferenceStrategy> CatalogCandidates => ShippedCatalogCandidates;
 
     /// <summary>The original 39 entries keep their IDs and argument fingerprints.</summary>
     public static IReadOnlyList<ReferenceStrategy> Baseline { get; } = ShippedBuiltIns.Concat(ShippedCatalogCandidates).ToArray();
 
-    public static IReadOnlyList<ReferenceStrategy> Extensions => UpstreamCandidates;
+    public static IReadOnlyList<ReferenceStrategy> Extensions => Array.Empty<ReferenceStrategy>();
 
-    public static IReadOnlyList<ReferenceStrategy> All { get; } =
-        Baseline.Concat(UpstreamCandidates).ToArray();
+    public static IReadOnlyList<ReferenceStrategy> All { get; } = Baseline;
 
     public static ReferenceStrategy? FindById(string id)
     {
