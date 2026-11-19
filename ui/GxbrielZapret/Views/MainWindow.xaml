@@ -866,11 +866,8 @@
                                                 <RadioButton Style="{StaticResource ChipButton}" IsChecked="{Binding ScopeDiscord, Mode=TwoWay}" Margin="0,0,4,2">
                                                     <TextBlock Text="Discord" VerticalAlignment="Center" FontSize="10"/>
                                                 </RadioButton>
-                                                <RadioButton Style="{StaticResource ChipButton}" IsChecked="{Binding ScopeYouTube, Mode=TwoWay}" Margin="0,0,4,2">
+                                                <RadioButton Style="{StaticResource ChipButton}" IsChecked="{Binding ScopeYouTube, Mode=TwoWay}" Margin="0,0,0,2">
                                                     <TextBlock Text="YouTube" VerticalAlignment="Center" FontSize="10"/>
-                                                </RadioButton>
-                                                <RadioButton Style="{StaticResource ChipButton}" IsChecked="{Binding ScopeRiot, Mode=TwoWay}" Margin="0,0,0,2">
-                                                    <TextBlock Text="LoL / Riot" VerticalAlignment="Center" FontSize="10"/>
                                                 </RadioButton>
                                             </WrapPanel>
 
@@ -1830,11 +1827,6 @@
                                                     <TextBlock Text="YouTube" VerticalAlignment="Center" Margin="6,0,0,0"/>
                                                 </StackPanel>
                                             </RadioButton>
-                                            <RadioButton Style="{StaticResource ModeSegment}" IsChecked="{Binding ScopeRiot, Mode=TwoWay}">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="⚔ LoL" FontWeight="SemiBold" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                                                </StackPanel>
-                                            </RadioButton>
                                         </WrapPanel>
                                     </Border>
                                 </StackPanel>
@@ -2462,7 +2454,7 @@
                                                 <StackPanel>
                                                     <TextBlock Text="{loc:Loc 'Игровой фильтр'}" Style="{StaticResource H2}" Margin="0,0,0,8"/>
                                                     <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
-                                                               Text="{loc:Loc 'По умолчанию ВЫКЛ — обход не трогает игровой трафик (высокие порты), игры работают напрямую. Включите, только если душат саму игру: обход распространится на все порты выше 1023 (заодно покроет Discord-медиа на высоких портах). Меняется на лету — движок перезапустится.'}"/>
+                                                               Text="{loc:Loc 'По умолчанию ВЫКЛ — обход не трогает игровой трафик (высокие порты), игры работают напрямую. Включите, только если оператор душит саму игру: обход распространится на порты выше 1023 (заодно покроет Discord-медиа). Чувствительный трафик LoL (2099, 5000-5500) и Riot Chat (5222-5223) изолирован и не перехватывается. Меняется на лету.'}"/>
                                                     <CheckBox Content="{loc:Loc 'Распространять обход на игровые порты (>1023)'}"
                                                               IsChecked="{Binding GameFilter}" Style="{StaticResource ToggleSwitch}"
                                                               Margin="0,4"/>
