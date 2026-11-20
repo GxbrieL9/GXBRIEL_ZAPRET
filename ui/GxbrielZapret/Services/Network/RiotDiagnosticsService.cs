@@ -77,9 +77,25 @@ public sealed class RiotDiagnosticsService
             using var tcp = new TcpClient();
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(4));
-            await tcp.ConnectAsync(host, port, timeoutCts.Token).ConfigureAwait(false);
+
+            // Check if OS DNS resolves to an unreachable/poisoned IP (e.g. Atlas Smart-DNS rewriting to 443-only proxy)
+            string targetEndpoint = host;
+            string extraDetail = "TCP OK";
+            try
+            {
+                using var doh = new DohResolver();
+                var dohIps = await doh.ResolveAsync(host, timeoutCts.Token).ConfigureAwait(false);
+                if (dohIps.Length > 0)
+                {
+                    targetEndpoint = dohIps[0];
+                    extraDetail = $"TCP OK (DoH {targetEndpoint})";
+                }
+            }
+            catch { }
+
+            await tcp.ConnectAsync(targetEndpoint, port, timeoutCts.Token).ConfigureAwait(false);
             sw.Stop();
-            return new RiotChatProbeResult(host, port, true, sw.ElapsedMilliseconds, "TCP OK");
+            return new RiotChatProbeResult(host, port, true, sw.ElapsedMilliseconds, extraDetail);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
